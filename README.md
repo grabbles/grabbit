@@ -1,2 +1,2 @@
-# grabbinds
+# grabbids
 grabb from data structures
