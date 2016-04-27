@@ -54,6 +54,7 @@
 
 	# list elements in this template:
 	entities = ds.list()
+
 	# get the smoothed entity filenames:
 	smoothed_filenames = ds.smoothed.filenames()
 
@@ -70,8 +71,7 @@
 	subjects_ids = ds.subjects.values()
 	['00', '01', '02', '03'], or list of values...
 
-	
-
+	# other ?
 
 
 
