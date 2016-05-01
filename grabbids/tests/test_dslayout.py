@@ -1,10 +1,8 @@
 from __future__ import division, print_function, absolute_import
 
-# from nose.plugins.attrib import attr
-
 import json
-import dslaout as ds
 import os.path as osp 
+import grabbids.dslayout as ds 
 
 # from nose.tools import (assert_true, 
 #                         assert_false, 
@@ -14,11 +12,17 @@ TEST_TEMPLATE = '/home/jb/code/grabbids/grabbids/tests/test_template.cjson'
 DATA_BASEDIR = '/home/jb/code/grabbids/grabbids/tests/data/ds005/'
 
 
-def test_strip_comments():
+def test_remove_comments():
     """
     """
-    template = ds.strip_comments(TEST_TEMPLATE)
-    print(template) 
+    nocomment_json_fname = ds.remove_comments(TEST_TEMPLATE)
+    assert osp.isfile(nocomment_json_fname) 
+    try:
+        with open(nocomment_json_fname) as fjson:
+            __ = json.load(fjson)
+            print(__)
+    except:
+        raise Exception, "{} not json?".format(nocomment_json_fname)
 
     
 
