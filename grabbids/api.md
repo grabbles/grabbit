@@ -56,7 +56,7 @@
 	entities = ds.list()
 
 	# get the smoothed entity filenames:
-	smoothed_filenames = ds.smoothed.filenames()
+	smoothed_filenames = ds.smoothed.get_filenames() 
 
 	# get specific smoothed entities filenames:
 	current_dict = {'sub':3, 'ses':2, 'run':1}
