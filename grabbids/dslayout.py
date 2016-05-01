@@ -1,32 +1,31 @@
-from __future__ import print_function, true_division
-import minify
+from __future__ import print_function, division, absolute_import
+from json_minify import json_minify
 import os.path as osp
 
 
 
-
-
-def remove_comments(filename, strip_space=strip_space):
+def remove_comments(filename, strip_space=False):
     """
     Remove // and /* */ comments from template file 
     (.cjson for commented jason by convention)
+    Create a json file where filename is
     """
-    assert osp.isfilename(filename)
-    string_to_minify = ''.join(open(fn).readlines())
+    assert osp.isfile(filename)
+    string_to_minify = ''.join(open(filename).readlines())
 
     fnbase = osp.splitext(osp.basename(filename))[0] 
     #fnext = osp.splitext(osp.basename(filename))[1]
     nocomment_filename = osp.join(osp.dirname(filename), fnbase, '_nc.json') 
 
-    str_nc = minify.json_minify(string_to_minify, strip_space=False)
+    str_nc = json_minify(string_to_minify, strip_space=strip_space)
     
     try:
         with open(nocomment_filename, "w") as fout:
             fout.write(str_nc)
     except:
-        ValueError, print("could not write {}", str_nc)
+        IOError, "could not write {}".format(str_nc)
 
-    return
+    return  nocomment_filename
     
 
 
