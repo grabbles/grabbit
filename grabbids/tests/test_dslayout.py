@@ -24,7 +24,24 @@ def test_remove_comments():
     except:
         raise Exception, "{} not json?".format(nocomment_json_fname)
 
+def test_remove_multiline_sep():
+    """
+    note :      \\ for \, 
+                \n for newline
+    """
+    liststr = ['abc\n', 'a b c d e long line \\\n', '   \t rest of the line']
+    expected = ['abc\n', 'a b c d e long line rest of the line']
+
+    listreturned = ds.remove_multiline_sep(liststr)
+    for elt1, elt2 in zip(listreturned, expected):
+        assert elt1 == elt2, "{} :isnt: {}".format(elt1, elt2)
     
+    liststr = ['abc\n']
+    expected = ['abc\n']
+
+    listreturned = ds.remove_multiline_sep(liststr)
+    for elt1, elt2 in zip(listreturned, expected):
+        assert elt1 == elt2, "{} :isnt: {}".format(elt1, elt2)
 
 #layo = ds.layout(TEST_TEMPLATE)
 
