@@ -15,7 +15,13 @@ DATA_BASEDIR = '/home/jb/code/grabbids/grabbids/tests/data/ds005/'
 def test_remove_comments():
     """
     """
-    nocomment_json_fname = ds.remove_comments(TEST_TEMPLATE)
+    
+    nocomment_json_fname = ds.get_tmp_json_fn(TEST_TEMPLATE)
+    assert nocomment_json_fname == '/home/jb/code/grabbids/grabbids/tests/_test_template_nc.json'
+    
+    dsdic = ds.remove_comments(TEST_TEMPLATE, strip_space=False, 
+                                writejsonfile=True, no_cmmt_fn='', overwrite=True)
+
     assert osp.isfile(nocomment_json_fname) 
     try:
         with open(nocomment_json_fname) as fjson:

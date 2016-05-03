@@ -1,8 +1,21 @@
 from __future__ import print_function, division, absolute_import
 from json_minify import json_minify
+import json
 import os.path as osp
 
-def remove_comments(filename, strip_space=False, overwrite=True):
+
+def get_tmp_json_fn(filename):
+    """
+    give back a tmporary json filename based on input filename
+    """
+    fnbase = osp.splitext(osp.basename(filename))[0] 
+    #fnext = osp.splitext(osp.basename(fnbase))[1]
+    nocomment_filename = osp.join(osp.dirname(filename), '_'+ fnbase +'_nc.json') 
+
+    return nocomment_filename
+
+
+def remove_comments(filename, strip_space=False, writejsonfile=True, no_cmmt_fn='', overwrite=True):
     """
     Remove // and /* */ comments from template file. By convention
     the file with comments will be a *.cjson (commented json). 
@@ -22,30 +35,39 @@ def remove_comments(filename, strip_space=False, overwrite=True):
 
     returns:
     --------
-    string
-        the filename of the no comment file
+    dict: 
+        the dictionnary with the json object 
 
     """
 
-    assert osp.isfile(filename)
+    # assert osp.isfile(filename)
     list_to_minify = open(filename).readlines()
     string_to_minify = ''.join(remove_multiline_sep(list_to_minify))
 
-    fnbase = osp.splitext(osp.basename(filename))[0] 
-    #fnext = osp.splitext(osp.basename(filename))[1]
-    nocomment_filename = osp.join(osp.dirname(filename), '_' + fnbase + '_nc.json') 
+    str_no_cmmt = json_minify(string_to_minify, strip_space=strip_space)
 
-    # check that there is no previous nocomment_filename or that we can overwrite
-    assert not osp.isfile(nocomment_filename) or overwrite
 
-    str_nc = json_minify(string_to_minify, strip_space=strip_space)
+    if writejsonfile:
+        if no_cmmt_fn == '':
+            no_cmmt_fn = get_tmp_json_fn(filename)
+
+        # check that there is no previous no_cmmt_fn or that we can overwrite
+        assert not osp.isfile(no_cmmt_fn) or overwrite
+
+        try:
+            with open(no_cmmt_fn, "w") as fout:
+                fout.write(str_no_cmmt)
+        except:
+            IOError, "could not write {}".format(str_no_cmmt)
+   
     try:
-        with open(nocomment_filename, "w") as fout:
-            fout.write(str_nc)
+        dsdic = json.load(str_no_cmmt)
+        print(dsdic)
+        return dsdic
     except:
-        IOError, "could not write {}".format(str_nc)
+        ValueError, "could not json-load {}".format(str_no_cmmt)
 
-    return  nocomment_filename
+    #return  dsdic
 
 
 def remove_multiline_sep(liststr):
@@ -85,5 +107,16 @@ def remove_multiline_sep(liststr):
             return [first] + remove_multiline_sep([second] + rest) 
 
 
+class DataLayout(object):
 
+    def __init__(self, layout_filename):
+        assert osp.isfile(layout_filename), "{} not a file".format(layout_filename)
+        self.jsonfile = layout_filename
+        remove_comments
+
+    def ds_get(self):
+        """
+    
+        """
+        pass
 
