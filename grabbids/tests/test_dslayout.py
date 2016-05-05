@@ -20,7 +20,7 @@ def test_remove_comments():
     assert nocomment_json_fname == '/home/jb/code/grabbids/grabbids/tests/_test_template_nc.json'
     
     dsdic = ds.remove_comments(TEST_TEMPLATE, strip_space=False, 
-                                writejsonfile=True, no_cmmt_fn='', overwrite=True)
+                                write_json_file=True, no_cmmt_fn='', overwrite=True)
 
     assert osp.isfile(nocomment_json_fname) 
     try:

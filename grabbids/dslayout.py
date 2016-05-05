@@ -15,7 +15,7 @@ def get_tmp_json_fn(filename):
     return nocomment_filename
 
 
-def remove_comments(filename, strip_space=False, writejsonfile=True, no_cmmt_fn='', overwrite=True):
+def remove_comments(filename, strip_space=False, write_json_file=True, no_cmmt_fn='', overwrite=True):
     """
     Remove // and /* */ comments from template file. By convention
     the file with comments will be a *.cjson (commented json). 
@@ -30,29 +30,30 @@ def remove_comments(filename, strip_space=False, writejsonfile=True, no_cmmt_fn=
         a filename jason like with comments
     strip_space: bool
         if True strip space ' ', '\n', '\r'
+    write_json_file: bool
+        if True writes a json file (without comments)
     overwrite: bool
         if file without comments exist, can we overwrite?
+        ignored if write_json_file == False
 
     returns:
     --------
     dict: 
         the dictionnary with the json object 
-
     """
 
     # assert osp.isfile(filename)
     list_to_minify = open(filename).readlines()
     string_to_minify = ''.join(remove_multiline_sep(list_to_minify))
-
     str_no_cmmt = json_minify(string_to_minify, strip_space=strip_space)
 
-
-    if writejsonfile:
+    if write_json_file:
         if no_cmmt_fn == '':
             no_cmmt_fn = get_tmp_json_fn(filename)
 
         # check that there is no previous no_cmmt_fn or that we can overwrite
-        assert not osp.isfile(no_cmmt_fn) or overwrite
+        dirname = osp.dirname(filename)
+        assert not osp.isfile(osp.join(dirname,no_cmmt_fn)) or overwrite
 
         try:
             with open(no_cmmt_fn, "w") as fout:
@@ -62,7 +63,6 @@ def remove_comments(filename, strip_space=False, writejsonfile=True, no_cmmt_fn=
    
     try:
         dsdic = json.load(str_no_cmmt)
-        print(dsdic)
         return dsdic
     except:
         ValueError, "could not json-load {}".format(str_no_cmmt)
@@ -85,9 +85,10 @@ def remove_multiline_sep(liststr):
     list of strings
     """
 
-    to_rm_secondline = ' \t'
     if not liststr:
         raise Exception, "Nothing in this list {}".format(liststr)
+
+    to_rm_secondline = ' \t'
 
     if len(liststr) == 1: 
         # last character a \
@@ -107,7 +108,7 @@ def remove_multiline_sep(liststr):
             return [first] + remove_multiline_sep([second] + rest) 
 
 
-class DataLayout(object):
+class DataStrucLayout(object):
 
     def __init__(self, layout_filename):
         assert osp.isfile(layout_filename), "{} not a file".format(layout_filename)
