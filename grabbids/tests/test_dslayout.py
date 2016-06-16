@@ -49,7 +49,46 @@ def test_remove_multiline_sep():
     for elt1, elt2 in zip(listreturned, expected):
         assert elt1 == elt2, "{} :isnt: {}".format(elt1, elt2)
 
-#layo = ds.layout(TEST_TEMPLATE)
+
+def test_read_layout():
+    """
+
+    """
+    template = TEST_TEMPLATE    
+    # initialize object layout
+    try:
+        layout = ds.layout(template)
+    except:
+        raise Exception, "could not initialize layout with file "\
+                                                    .format(template)
+
+    # no base dir given: should be ""
+    assert layout.get('base_dir') == ""
+
+    try:
+        layout = ds.layout(template, base_dir=DATA_BASEDIR)
+    except:
+        raise Exception, "could not initialize layout with files "\
+                                                    .format(template, DATA_BASEDIR)
+
+# get the list of subject directories:
+subject_dirs = layout.get('subjects') # or layout.subjects ?
+
+# get a specific subject directories:
+
+this_sub_dir = layout.subject(sub_value) # works because subject top in hierarchy
+
+# get a specific run directories:
+
+this_run_dir = layout.subject(sub_value).session(None).run(run_value) # 
+this_run_dir = layout.run(run_value, sub='*',ses=None) # 
+
+#"images": "{subjects}/func/{subject}_{task}_{run}_bold.nii.gz"
+images = layout.get("images", sub='*', task='*', run='02')
+# or 
+images = layout.images(sub='*', task='*', run='02')
+
+
 
 #
 #dlayo = lo.get_layout(JSONTEST, dbase = DATABASEDIR)

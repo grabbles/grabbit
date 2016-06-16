@@ -1,41 +1,49 @@
 {
+    //
+    // This file defines :
+    //		1. How to form specific names with key values
+    //		   This will create the list of possible names for eg. subjects
+    //		2. Some path on the disk made of these names
+    //
+
     "base_dir":"",
-    "entities":{
-	"names":["subject", "session", "run", "smoothed", "mvt6param"],
-	"subject":{"key":"sub", "lnk":"-", "val":"02d"},
-	"session":{"key":"ses", "lnk":"-", "val":"02d"},
-	"run":{"key":"run", "lnk":"-", "val":"02d"}
-    },
+    "defaults":{"lnk":"-", "dir_is_optional":true},
+
+    // define the names. 
+    // This will tell how to form a directory or a filename
+
+    // Define the names of the entities //
+    //---------------------------------------------------------------
+    "subject":{"key":"sub", "val":"02d"},
+    // "subject":{"key":"sub", "lnk":"-", "val":"02d"},
+    // here, we discover the values, no formatting
+    // "subject":{"key":"sub", "lnk":"-", "val":"*"},
+    "session":{"key":"ses", "val":"02d"},
+    "run":{"key":"run", "val":"02d"},
+    "task":{"key":"task", "val":"mixedgamblestask"}
 
     // If subjects values are not rule-based, this would be needed:
     //----------------------------------------------------------------
-    "subject":{"key":"sub", "lnk":"-", "val":["1","2","3","toto"]},
-    "session":{"key":"ses", "lnk":"-", "val":["1","2","3","too_many"]},
-    "run":{"key":"run", "lnk":"-", "val":["1","2","3","5","17","0"]},
+    //"subject":{"key":"sub", "lnk":"-", "val":["1","2","3","toto"]},
+    //"session":{"key":"ses", "lnk":"-", "val":["1","2","3","too_many"]},
+    //"run":{"key":"run", "lnk":"-", "val":["1","2","3","5","17","0"]},
 
-    // and we can have directly:
-    "smoothed":{
-	"pth":"{base_dir}/sub-{sub:02d}/func/ses-{ses-:02d}/preproc/{run-:02d}/",
-	"file":"sub-{sub:02d}_ses-{ses-:02d}_{run-:02d}_epi.[nii,nii.gz]"
-    },
+    // say where the subjects directories are with: 
+    // the trailing / is to specify that this expects back a directory
 
-    // in which case we can have:
-    "smoothed":{
-	"pth":"{base_dir}/{subject}/{session}/preproc/{run}/",
-	"file":"{subject}_{session}_{run}_epi.[nii,nii.gz]"
-    },
+    "subjects":{base_dir}/{subject}/
 
-    // Possibly a mix: we can have:
-    "smoothed":{
-	"pth":"{base_dir}/sub-{sub:02d}/{session}/preproc/{run}/",
-	"fln":"{subject}_{session}_{run}_epi.[nii,nii.gz]", "card":"==1",
-	// other for "card": ">=1", "==1", ">=0", "[3,5[", 
-	// default: ">=0"
-	// if either nii or nii.gz but not both:
-	"fln":"{subject}_{session}_{run}_epi.[nii|nii.gz]"
-    },
+    // say where the runs directories are with
+    "runs":{base_dir}/{subject}/{sessions}/preproc/{run}/
 
-    // could also be:
-    "smoothed":"{base_dir}/{subject}/{session}/preproc/{run}/{subject}_\
-    						{session}_{run}_epi.[nii,nii.gz]"
+    // say where the smoothed images are with
+    // "smoothed":"{base_dir}/{subject}/{session}/preproc/{run}/{subject}_\
+    //						{session}_{run}_epi.[nii,nii.gz]",
+
+    // because runs is defined, we can we have for the smoothed data:
+    "smoothed":"{runs}/{subject}_{session}_{run}_epi.[nii,nii.gz]"
+
+    // example of ds005 :
+    "images": "{subjects}/func/{subject}_{task}_{run}_bold.nii.gz"
+
 }

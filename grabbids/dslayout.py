@@ -32,6 +32,8 @@ def remove_comments(filename, strip_space=False, write_json_file=True, no_cmmt_f
         if True strip space ' ', '\n', '\r'
     write_json_file: bool
         if True writes a json file (without comments)
+    no_commt_fn: string
+        if empty, will create a filename based on the input .cjson file
     overwrite: bool
         if file without comments exist, can we overwrite?
         ignored if write_json_file == False
@@ -89,10 +91,11 @@ def remove_multiline_sep(liststr):
         raise Exception, "Nothing in this list {}".format(liststr)
 
     to_rm_secondline = ' \t'
+    antislash = '\\'
 
     if len(liststr) == 1: 
         # last character a \
-        if len(liststr[0]) > 2 and liststr[0][-2] == '\\': 
+        if len(liststr[0]) > 2 and liststr[0][-2] == antislash: 
             return [liststr[0][:-2]]
         else:
             return liststr
@@ -100,7 +103,8 @@ def remove_multiline_sep(liststr):
         # two or more in the list, first and second are str, rest is list
         first, second, rest = liststr[0], liststr[1], liststr[2:]
 
-        if len(first) > 2 and first[-2] == '\\':
+        # last character is newline or return, see if previous is \
+        if len(first) > 2 and first[-2] == antislash:
             # rm the '\', then rm white spaces in second
             return remove_multiline_sep([first[:-2] + \
                                          second.strip(to_rm_secondline)] + rest)
