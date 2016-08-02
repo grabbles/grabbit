@@ -19,8 +19,9 @@
     // here, we discover the values, no formatting
     // "subject":{"key":"sub", "lnk":"-", "val":"*"},
     "session":{"key":"ses", "val":"02d"},
+    "session":{"regex":"ses-[\D\D]"}
     "run":{"key":"run", "val":"02d"},
-    "task":{"key":"task", "val":"mixedgamblestask"}
+    "task":{"key":"task", "val":["mixedgamblestask", "anotherTask"]}
 
     // If subjects values are not rule-based, this would be needed:
     //----------------------------------------------------------------
@@ -44,6 +45,6 @@
     "smoothed":"{runs}/{subject}_{session}_{run}_epi.[nii,nii.gz]"
 
     // example of ds005 :
-    "images": "{subjects}/func/{subject}_{task}_{run}_bold.nii.gz"
+    "images": "{subjects}/[{session}]/func/{subject}_{task}_{run}_bold.nii.gz"
 
 }
