@@ -71,20 +71,54 @@ def test_read_layout():
         raise Exception, "could not initialize layout with files "\
                                                     .format(template, DATA_BASEDIR)
 
-# get the list of subject directories:
-subject_dirs = layout.get('subjects') # or layout.subjects ?
 
-# get a specific subject directories:
 
-this_sub_dir = layout.subject(sub_value) # works because subject top in hierarchy
 
-# get a specific run directories:
+def test_get_subjects_dirs():
 
-this_run_dir = layout.subject(sub_value).session(None).run(run_value) # 
-this_run_dir = layout.run(run_value, sub='*',ses=None) # 
+    # get the list of subject directories:
+    template = TEST_TEMPLATE    
+    layout = ds.layout(template, base_dir=DATA_BASEDIR)
+    subject_dirs = layout.get('subjects') # or layout.subjects ?
+    expected_list_dirs = [DATA_BASEDIR+'sub-{:02d}'.format(i) for i in range(1,16)]
+    assert set(subject_dirs) == set(expected_list_dirs)
 
-#"images": "{subjects}/func/{subject}_{task}_{run}_bold.nii.gz"
-images = layout.get("images", sub='*', task='*', run='02')
+def test_get_one_subject_dir():
+    """
+    """
+    template = TEST_TEMPLATE    
+    layout = ds.layout(template, base_dir=DATA_BASEDIR)
+    
+    # get a specific subject directories:
+    this_sub_dir = layout.subject('02') # works because subject top in hierarchy
+    expected = DATA_BASEDIR+'sub-02'
+    assert this_sub_dir == expected
+    
+    # give it a number
+    this_sub_dir = layout.subject(2) # works because subject top in hierarchy
+    assert this_sub_dir == expected
+    
+    try:
+        # this should fail:
+        this_sub_dir = layout.subject('toto')
+        assert False
+    except:
+        assert True
+        
+    #this_run_dir = layout.subject(sub_value).session(None).run(run_value) # 
+    #this_run_dir = layout.run(run_value, sub='*',ses=None) # 
+
+def test_get_images():
+    """
+    """
+    template = TEST_TEMPLATE    
+    layout = ds.layout(template, base_dir=DATA_BASEDIR)
+
+    #"images": "{subjects}/func/{subject}_{task}_{run}_bold.nii.gz"
+    images = layout.get("images", sub='*', task='*', run='02')
+    expected_images = 
+
+
 # or 
 images = layout.images(sub='*', task='*', run='02')
 
