@@ -1,23 +1,31 @@
 import json
-from glob import glob
+# from glob import glob
 import os
 import re
 from collections import defaultdict
 from six import string_types
-from pprint import pprint
-from os.path import dirname, join, exists
+# from pprint import pprint
+from os.path import dirname, join  # , exists
 
 __all__ = ['File', 'Entity', 'Structure']
+
 
 def get_test_data_path():
     return join(dirname(__file__), 'tests')
 
-# Utils for creating trees and converting them to plain dicts 
+
+# Utils for creating trees and converting them to plain dicts
 def tree(): return defaultdict(tree)
-def to_dict(t):
-    if not isinstance(t, dict):
-        return t
-    return {k: to_dict(t[k]) for k in t }
+
+
+def to_dict(tree):
+    """
+    turns a tree into a dictionary for printing purposes
+    """
+    if not isinstance(tree, dict):
+        return tree
+    return {k: to_dict(tree[k]) for k in tree}
+
 
 class File(object):
 
@@ -26,7 +34,7 @@ class File(object):
         Represents a single file.
         """
         # if not exists(filename):
-            # raise OSError("File '%s' can't be found." % filename)
+        #     raise OSError("File '%s' can't be found." % filename)
         self.name = filename
         self.entities = {}
 
@@ -90,7 +98,6 @@ class Structure(object):
                 if f.entities:
                     self.files[f.name] = f
 
-
     def get(self, entities, return_type='file', filter=None, extensions=None):
         """
         Retrieve files and/or metadata from the current Structure.
@@ -119,9 +126,8 @@ class Structure(object):
         if extensions is not None:
             extensions = '(' + '|'.join(extensions) + ')$'
 
-
         for filename, file in self.files.items():
-            entity_keys = []
+            #  entity_keys = []
 
             include = True
             _call = 'result'
