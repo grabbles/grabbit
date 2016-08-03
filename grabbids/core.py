@@ -1,11 +1,9 @@
 import json
-# from glob import glob
 import os
 import re
 from collections import defaultdict
 from six import string_types
-# from pprint import pprint
-from os.path import dirname, join  # , exists
+from os.path import join
 
 __all__ = ['File', 'Entity', 'Structure']
 
@@ -141,7 +139,6 @@ class Structure(object):
             extensions = '(' + '|'.join(extensions) + ')$'
 
         for filename, file in self.files.items():
-            #  entity_keys = []
 
             include = True
             _call = 'result'
