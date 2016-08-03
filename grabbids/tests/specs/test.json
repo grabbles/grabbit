@@ -9,12 +9,17 @@
       "pattern": "(run-\\d+)"
     },
     {
+      "name": "session",
+      "pattern": "(ses-\\d)"
+    },
+    {
       "name": "type",
       "pattern": ".*_(.*?)\\."
     }
   ],
   "result": [
     "subject",
+    "session",
     "run",
     "type"
   ]

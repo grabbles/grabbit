@@ -20,6 +20,9 @@ def to_dict(t):
 class File(object):
 
     def __init__(self, filename):
+        """
+        Represents a single file.
+        """
         self.name = filename
         self.entities = {}
 
@@ -27,12 +30,26 @@ class File(object):
 class Entity(object):
 
     def __init__(self, name, pattern):
+        """
+        Represents a single entity defined in the JSON specification.
+        Args:
+            name (str): The name of the entity (e.g., 'subject', 'run', etc.)
+            pattern (str): A regex pattern used to match against file names.
+                Must define at least one group, and only the first group is
+                kept as the match.
+        """
         self.name = name
         self.pattern = pattern
         self.files = {}
         self.regex = re.compile(pattern)
 
     def matches(self, f):
+        """
+        Run a regex search against the passed file and update the entity/file
+        mappings.
+        Args:
+            f (File): The File instance to match against.
+        """
         m = self.regex.search(f.name)
         if m is not None:
             val = m.group(1)
@@ -43,7 +60,13 @@ class Entity(object):
 class Structure(object):
 
     def __init__(self, specification, path):
-
+        """
+        A container for all the files and metadata found at the specified path.
+        Args:
+            specification (str): The path to the JSON specification file
+                that defines the entities and paths for the current structure.
+            path (str): The root path of the structure.
+        """
         self.spec = json.load(open(specification, 'r'))
         self.path = path
         self.entities = {}
@@ -65,6 +88,21 @@ class Structure(object):
 
 
     def get(self, entities, return_type='file', filter=None):
+        """
+        Retrieve files and/or metadata from the current Structure.
+        Args:
+            entities (str, iterable): One or more entities to retrieve data
+                for. Only files that match at least one of the passed entity
+                names will be returned.
+            return_type (str): What to return. At present, only 'file' works.
+            filter (dict): A dictionary of optional key/values to filter the
+                entities on. Keys are entity names, values are regexes to
+                filter on. For example, passing filter={ 'subject': 'sub-[12]'}
+                would return only files that match the first two subjects.
+        Returns:
+            A nested dictionary, with the levels of the hierarchy defined
+            in a json spec file (currently using the "result" key).
+        """
         if isinstance(entities, string_types):
             entities = [entities]
 
@@ -91,12 +129,3 @@ class Structure(object):
                 exec(_call)
 
         return to_dict(result)
-
-
-if __name__ == "__main__":
-    spec_file = join(get_test_data_path(), 'specs', 'test.json')
-    bids_dir = join(get_test_data_path(), 'data', 'ds005')
-    struct = Structure(spec_file, bids_dir)
-
-    pprint(struct.get('subject', filter={'subject': 'sub-0[1234]'}))
-
