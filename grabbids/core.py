@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from six import string_types
 from os.path import join
 
@@ -21,6 +21,14 @@ def to_dict(tree):
         return tree
     return {k: to_dict(tree[k]) for k in tree}
 
+def get_flattened_values(d):
+    vals = []
+    for k, v in d.items():
+        if isinstance(v, dict):
+            vals.extend(get_flattened_values(v))
+        else:
+            vals.append(v)
+    return vals
 
 class File(object):
 
@@ -91,7 +99,7 @@ class Structure(object):
         """
         self.spec = json.load(open(specification, 'r'))
         self.path = path
-        self.entities = {}
+        self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
 
@@ -117,7 +125,8 @@ class Structure(object):
                     for ent, val in f.entities.items():
                         self.entities[ent].add_file(f.name, val)
 
-    def get(self, entities, return_type='file', filter=None, extensions=None):
+    def get(self, entities, return_type='file', filter=None, extensions=None,
+            hierarchy=None, flatten=False):
         """
         Retrieve files and/or metadata from the current Structure.
         Args:
@@ -140,7 +149,8 @@ class Structure(object):
 
         result = tree()
 
-        entity_order = self.spec['hierarchy']
+        if hierarchy is None:
+            hierarchy = self.spec.get('hierarchy', self.entities.keys())
 
         if extensions is not None:
             extensions = '(' + '|'.join(extensions) + ')$'
@@ -149,7 +159,7 @@ class Structure(object):
 
             include = True
             _call = 'result'
-            for i, ent in enumerate(entity_order):
+            for i, ent in enumerate(hierarchy):
                 missing_value = self.entities[ent].missing_value
                 key = file.entities.get(ent, missing_value)
                 _call += '["%s"]' % key
@@ -170,7 +180,8 @@ class Structure(object):
                 _call += ' = "%s"' % (filename)
                 exec(_call)
 
-        return to_dict(result)
+        result = to_dict(result)
+        return get_flattened_values(result) if flatten else result
 
     def unique(self, entity):
         """
