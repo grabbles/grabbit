@@ -21,6 +21,7 @@ def to_dict(tree):
         return tree
     return {k: to_dict(tree[k]) for k in tree}
 
+
 def get_flattened_values(d):
     vals = []
     for k, v in d.items():
@@ -29,6 +30,7 @@ def get_flattened_values(d):
         else:
             vals.append(v)
     return vals
+
 
 class File(object):
 
@@ -140,6 +142,21 @@ class Structure(object):
                 would return only files that match the first two subjects.
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
+            hierarchy (list): A specification of the hierarchical structure of
+                the returned dictionary. Entities will be nested inside one
+                another based on the order in the passed list. For example,
+                ['subject', 'session', 'run'] will return a dictionary of
+                subject_key => sessions, then session_key => runs, etc.
+                Any existing entities omitted from the hierarchy list will be
+                ignored in the result. For example, ['subject', 'run'] will
+                implicitly collapse over all sessions. If hierarchy is None,
+                will attempt to default to a 'hierarchy' key in the JSON
+                config file. If no key is found in the config, all of the
+                entities will be used in the order they were created.
+            flatten (bool): If True, all values in the nested dictionary
+                returned by default will be flattened into a single list. This
+                is useful when specifying a filter argument--e.g., to return
+                all and only the bold images for run 1 for all subjects.
         Returns:
             A nested dictionary, with the levels of the hierarchy defined
             in a json spec file (currently using the "result" key).
