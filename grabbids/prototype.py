@@ -8,13 +8,10 @@ from pprint import pprint
 from os.path import dirname, join
 
 def get_test_data_path():
-    """Returns the path to test datasets, terminated with separator (/ vs \)"""
-    # TODO: do not rely on __file__
     return join(dirname(__file__), 'tests')
 
-
+# Utils for creating trees and converting them to plain dicts 
 def tree(): return defaultdict(tree)
-
 def to_dict(t):
     if not isinstance(t, dict):
         return t
@@ -66,8 +63,6 @@ class Structure(object):
                 if f.entities:
                     self.files[f.name] = f
 
-        # for e in self.entities.values():
-
 
     def get(self, entities, return_type='file', filter=None):
         if isinstance(entities, string_types):
@@ -91,7 +86,6 @@ class Structure(object):
                         include = False
                         break
 
-            # resource_type = file.name.split('_')[-1].split('.')[0]
             if include:
                 _call += ' = "%s"' % (file.name)
                 exec(_call)
@@ -101,7 +95,7 @@ class Structure(object):
 
 if __name__ == "__main__":
     spec_file = join(get_test_data_path(), 'specs', 'test.json')
-    bids_dir = join(get_test_data_path(), 'data', 'ds105')
+    bids_dir = join(get_test_data_path(), 'data', 'ds005')
     struct = Structure(spec_file, bids_dir)
 
     pprint(struct.get('subject', filter={'subject': 'sub-0[1234]'}))
