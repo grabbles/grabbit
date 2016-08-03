@@ -3,8 +3,8 @@ ls
 fn = './test_template.cjson'
 import numpy as np
 np.loadtxt(fn)
-with fh as open(fn):
-    print fh.read()
+with open(fn) as fh:
+    print(fh.read())
 fh = open(fn)
 fh.readlines()
 s = open(fn).readlines()
