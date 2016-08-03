@@ -66,6 +66,10 @@ class Entity(object):
         self.files = {}
         self.regex = re.compile(pattern)
 
+    def __iter__(self):
+        for i in self.unique():
+            yield(i)
+
     def matches(self, f):
         """
         Run a regex search against the passed file and update the entity/file
@@ -115,7 +119,7 @@ class Structure(object):
         # Loop over all files
         for root, directories, filenames in os.walk(path):
             for f in filenames:
-                f = File(f)
+                f = File(join(root, f))
                 for e in self.entities.values():
                     e.matches(f)
                 fe = f.entities.keys()
