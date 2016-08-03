@@ -1,11 +1,31 @@
-from distutils.core import setup
+import sys
+from setuptools import setup, find_packages
 
-setup(name='grabbids',
-#      version='1.0',
-#      description='Python Distribution Utilities',
-#      author='Greg Ward',
-#      author_email='gward@python.net',
-#      url='https://www.python.org/sigs/distutils-sig/',
-      packages=['grabbids'],
-      package_data={'grabbids': ['test/data/*.{tsv,gz}', 'test/data/*/*.{tsv,gz}']},
-     )
+if len(set(('test', 'easy_install')).intersection(sys.argv)) > 0:
+    import setuptools
+
+tests_require = []
+
+VERSION = "0.0.1"
+
+setup(
+    name="transitions",
+    version=VERSION,
+    description=".",
+    maintainer='BIDS people',
+    url='http://github.com/jbpoline/grabbids',
+    packages=find_packages(exclude=['tests', 'test_*']),
+    package_data={'grabbids.tests': ['data/*']},
+    install_requires=['six'],
+    tests_require=tests_require,
+    license='MIT',
+    download_url='http://github.com/jbpoline/grabbids/archive/%s.tar.gz' % VERSION,
+    classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+    ]
+)

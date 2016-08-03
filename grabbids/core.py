@@ -5,7 +5,9 @@ import re
 from collections import defaultdict
 from six import string_types
 from pprint import pprint
-from os.path import dirname, join
+from os.path import dirname, join, exists
+
+__all__ = ['File', 'Entity', 'Structure']
 
 def get_test_data_path():
     return join(dirname(__file__), 'tests')
@@ -23,6 +25,8 @@ class File(object):
         """
         Represents a single file.
         """
+        # if not exists(filename):
+            # raise OSError("File '%s' can't be found." % filename)
         self.name = filename
         self.entities = {}
 
@@ -136,7 +140,6 @@ class Structure(object):
                     if re.search(extensions, filename) is None:
                         include = False
                         break
-
 
             if include:
                 _call += ' = "%s"' % (filename)
