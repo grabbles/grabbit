@@ -1,5 +1,6 @@
 from __future__ import print_function, division, absolute_import
-from json_minify import json_minify
+#from json_minify import json_minify
+#import cjson
 import json
 import os.path as osp
 
@@ -8,21 +9,22 @@ def get_tmp_json_fn(filename):
     """
     give back a tmporary json filename based on input filename
     """
-    fnbase = osp.splitext(osp.basename(filename))[0] 
+    fnbase = osp.splitext(osp.basename(filename))[0]
     #fnext = osp.splitext(osp.basename(fnbase))[1]
-    nocomment_filename = osp.join(osp.dirname(filename), '_'+ fnbase +'_nc.json') 
+    nocomment_filename = osp.join(osp.dirname(filename), '_'+ fnbase +'_nc.json')
 
     return nocomment_filename
 
 
-def remove_comments(filename, strip_space=False, write_json_file=True, no_cmmt_fn='', overwrite=True):
+def remove_comments(filename, strip_space=False, write_json_file=True,
+                    no_cmmt_fn='', overwrite=True):
     """
     Remove // and /* */ comments from template file. By convention
-    the file with comments will be a *.cjson (commented json). 
+    the file with comments will be a *.cjson (commented json).
 
-    Create a *.json file without comments. Appart from the comments, 
+    Create a *.json file without comments. Appart from the comments,
     the function will also join two lines that if the last character
-    of the first line is a '\'. 
+    of the first line is a '\'.
 
     parameters:
     -----------
@@ -40,8 +42,8 @@ def remove_comments(filename, strip_space=False, write_json_file=True, no_cmmt_f
 
     returns:
     --------
-    dict: 
-        the dictionnary with the json object 
+    dict:
+        the dictionnary with the json object
     """
 
     # assert osp.isfile(filename)
@@ -62,7 +64,7 @@ def remove_comments(filename, strip_space=False, write_json_file=True, no_cmmt_f
                 fout.write(str_no_cmmt)
         except:
             IOError, "could not write {}".format(str_no_cmmt)
-   
+
     try:
         dsdic = json.load(str_no_cmmt)
         return dsdic
@@ -74,9 +76,9 @@ def remove_comments(filename, strip_space=False, write_json_file=True, no_cmmt_f
 
 def remove_multiline_sep(liststr):
     """
-    from a list of lines, remove the '\' at the end of a line and join with next line
-    after removing the white spaces ' \t' of the next line.
-    
+    from a list of lines, remove the '\' at the end of a line and join with next
+    line after removing the white spaces ' \t' of the next line.
+
     parameters:
     -----------
     liststr: list of strings
@@ -88,14 +90,14 @@ def remove_multiline_sep(liststr):
     """
 
     if not liststr:
-        raise Exception, "Nothing in this list {}".format(liststr)
+        raise Exception("Nothing in this list {}".format(liststr))
 
     to_rm_secondline = ' \t'
     antislash = '\\'
 
-    if len(liststr) == 1: 
+    if len(liststr) == 1:
         # last character a \
-        if len(liststr[0]) > 2 and liststr[0][-2] == antislash: 
+        if len(liststr[0]) > 2 and liststr[0][-2] == antislash:
             return [liststr[0][:-2]]
         else:
             return liststr
@@ -109,7 +111,7 @@ def remove_multiline_sep(liststr):
             return remove_multiline_sep([first[:-2] + \
                                          second.strip(to_rm_secondline)] + rest)
         else:
-            return [first] + remove_multiline_sep([second] + rest) 
+            return [first] + remove_multiline_sep([second] + rest)
 
 
 class DataStrucLayout(object):
@@ -121,7 +123,7 @@ class DataStrucLayout(object):
 
     def ds_get(self):
         """
-    
+
         """
         pass
 
