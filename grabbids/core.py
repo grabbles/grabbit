@@ -69,7 +69,14 @@ class Entity(object):
             f.entities[self.name] = val
 
     def add_file(self, filename, value):
+        """ Adds the specified filename to tracking. """
         self.files[filename] = value
+
+    def unique(self):
+        return list(set(self.files.values()))
+
+    def count(self, files=False):
+        return len(self.files) if files else len(self.unique())
 
 
 class Structure(object):
@@ -164,3 +171,22 @@ class Structure(object):
                 exec(_call)
 
         return to_dict(result)
+
+    def unique(self, entity):
+        """
+        Return a list of unique values for the named entity.
+        Args:
+            entity (str): The name of the entity to retrieve unique values of.
+        """
+        return self.entities[entity].unique()
+
+    def count(self, entity, files=False):
+        """
+        Return the count of unique values or files for the named entity.
+        Args:
+            entity (str): The name of the entity.
+            files (bool): If True, counts the number of filenames that contain
+                at least one value of the entity, rather than the number of
+                unique values of the entity.
+        """
+        return self.entities[entity].count(files)
