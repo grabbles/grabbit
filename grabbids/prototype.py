@@ -87,7 +87,7 @@ class Structure(object):
                     self.files[f.name] = f
 
 
-    def get(self, entities, return_type='file', filter=None):
+    def get(self, entities, return_type='file', filter=None, extensions=None):
         """
         Retrieve files and/or metadata from the current Structure.
         Args:
@@ -99,6 +99,8 @@ class Structure(object):
                 entities on. Keys are entity names, values are regexes to
                 filter on. For example, passing filter={ 'subject': 'sub-[12]'}
                 would return only files that match the first two subjects.
+            extensions (str, list): One or more file extensions to filter on.
+                Files with any other extensions will be excluded.
         Returns:
             A nested dictionary, with the levels of the hierarchy defined
             in a json spec file (currently using the "result" key).
@@ -110,7 +112,11 @@ class Structure(object):
 
         entity_order = self.spec['result']
 
-        for fn, file in self.files.items():
+        if extensions is not None:
+            extensions = '(' + '|'.join(extensions) + ')$'
+
+
+        for filename, file in self.files.items():
             entity_keys = []
 
             include = True
@@ -119,13 +125,21 @@ class Structure(object):
                 key = file.entities.get(ent, "%s-1" % ent)
                 _call += '["%s"]' % key
 
+                # Filter on entity values
                 if filter is not None and ent in filter:
                     if re.search(filter[ent], key) is None:
                         include = False
                         break
 
+                # Filter on extensions
+                if extensions is not None:
+                    if re.search(extensions, filename) is None:
+                        include = False
+                        break
+
+
             if include:
-                _call += ' = "%s"' % (file.name)
+                _call += ' = "%s"' % (filename)
                 exec(_call)
 
         return to_dict(result)
