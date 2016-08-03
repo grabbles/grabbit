@@ -4,13 +4,10 @@ import os
 import re
 from collections import defaultdict
 from six import string_types
-from pprint import pprint
 from os.path import dirname, join, exists
 
 __all__ = ['File', 'Entity', 'Structure']
 
-def get_test_data_path():
-    return join(dirname(__file__), 'tests')
 
 # Utils for creating trees and converting them to plain dicts 
 def tree(): return defaultdict(tree)
@@ -33,7 +30,8 @@ class File(object):
 
 class Entity(object):
 
-    def __init__(self, name, pattern):
+    def __init__(self, name, pattern, mandatory=False, missing_value=None,
+                 directory=None):
         """
         Represents a single entity defined in the JSON specification.
         Args:
@@ -44,6 +42,11 @@ class Entity(object):
         """
         self.name = name
         self.pattern = pattern
+        self.mandatory = mandatory
+        if missing_value is None:
+            missing_value = self.name
+        self.missing_value = missing_value
+        self.directory = directory
         self.files = {}
         self.regex = re.compile(pattern)
 
@@ -58,7 +61,9 @@ class Entity(object):
         if m is not None:
             val = m.group(1)
             f.entities[self.name] = val
-            self.files[f.name] = val
+
+    def add_file(self, filename, value):
+        self.files[filename] = value
 
 
 class Structure(object):
@@ -75,11 +80,14 @@ class Structure(object):
         self.path = path
         self.entities = {}
         self.files = {}
+        self.mandatory = set()
 
         # Set up the entities we need to track
         for e in self.spec['entities']:
-            name, pattern = e['name'], e['pattern']
-            self.entities[name] = Entity(name, pattern)
+            ent = Entity(**e)
+            if ent.mandatory:
+                self.mandatory.add(ent)
+            self.entities[ent.name] = ent
 
         # Loop over all files
         for root, directories, filenames in os.walk(path):
@@ -87,8 +95,14 @@ class Structure(object):
                 f = File(f)
                 for e in self.entities.values():
                     e.matches(f)
-                if f.entities:
+                fe = f.entities.keys()
+                # Only keep Files that match at least one Entity, and all
+                # mandatory Entities
+                if fe and not (self.mandatory - set(fe)):
                     self.files[f.name] = f
+                    # Bind the File to all of the matching entities
+                    for ent, val in f.entities.items():
+                        self.entities[ent].add_file(f.name, val)
 
 
     def get(self, entities, return_type='file', filter=None, extensions=None):
@@ -114,7 +128,7 @@ class Structure(object):
 
         result = tree()
 
-        entity_order = self.spec['result']
+        entity_order = self.spec['hierarchy']
 
         if extensions is not None:
             extensions = '(' + '|'.join(extensions) + ')$'
@@ -126,7 +140,8 @@ class Structure(object):
             include = True
             _call = 'result'
             for i, ent in enumerate(entity_order):
-                key = file.entities.get(ent, "%s-1" % ent)
+                missing_value = self.entities[ent].missing_value
+                key = file.entities.get(ent, missing_value)
                 _call += '["%s"]' % key
 
                 # Filter on entity values

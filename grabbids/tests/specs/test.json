@@ -1,8 +1,4 @@
 {
-  "constants": {
-    "base_dir": "ds105",
-    "derivs_dir": "{base_dir}/derivs",
-  },
   "entities": [
     {
       "name": "subject",
@@ -17,18 +13,14 @@
       "name": "session",
       "pattern": "(ses-\\d)",
       "mandatory": false,
-      "missing-value": "func"
+      "missing_value": "ses-1"
     },
     {
       "name": "type",
       "pattern": ".*_(.*?)\\."
-    },
-    {
-        "name": "realignment-param",
-        "pattern": ""
     }
   ],
-  "result": [
+  "hierarchy": [
     "subject",
     "session",
     "run",
