@@ -1,2 +1,2 @@
-# grabbids
-grabb from data structures
+# grabbit
+grab things from a data layout on disk

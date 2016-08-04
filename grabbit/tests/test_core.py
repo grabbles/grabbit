@@ -1,5 +1,5 @@
 import pytest
-from grabbids import Structure
+from grabbit import Structure
 from os.path import join, dirname
 from pprint import pprint
 

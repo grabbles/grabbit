@@ -3,5 +3,5 @@ dev-install:
 	pip install -e .
 
 test: 
-	py.test --cov=grabbids --pyargs grabbids 
+	py.test --cov=grabbit --pyargs grabbit 
 
