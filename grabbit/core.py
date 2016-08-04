@@ -208,11 +208,9 @@ class Structure(object):
             return candidates
 
         order = self.config.get('inheritance', self.entities.keys())
-        if not isinstance(order[0], (list, tupe)):
+        if not isinstance(order[0], (list, tuple)):
             order = [order]
         order = itertools.product(*order)
-        print(order)
-
 
     def unique(self, entity):
         """

@@ -11,7 +11,7 @@ VERSION = "0.0.1"
 setup(
     name="grabbit",
     version=VERSION,
-    description=".",
+    description="get grabby with data structures",
     maintainer='BIDS people',
     maintainer_email='tyarkoni@gmail.com',
     url='http://github.com/INCF/grabbit',
