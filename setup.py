@@ -13,6 +13,7 @@ setup(
     version=VERSION,
     description=".",
     maintainer='BIDS people',
+    maintainer_email='tyarkoni@gmail.com',
     url='http://github.com/INCF/grabbit',
     packages=find_packages(exclude=['tests', 'test_*']),
     package_data={'grabbit.tests': ['data/*']},
