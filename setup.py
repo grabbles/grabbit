@@ -9,11 +9,11 @@ tests_require = []
 VERSION = "0.0.1"
 
 setup(
-    name="transitions",
+    name="grabbit",
     version=VERSION,
     description=".",
     maintainer='BIDS people',
-    url='http://github.com/jbpoline/grabbit',
+    url='http://github.com/INCF/grabbit',
     packages=find_packages(exclude=['tests', 'test_*']),
     package_data={'grabbit.tests': ['data/*']},
     install_requires=['six'],
