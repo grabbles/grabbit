@@ -3,34 +3,11 @@ import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
 from six import string_types
-from os.path import join, exists
+from os.path import join, exists, basename, dirname, relpath
+import os
 import itertools
 
 __all__ = ['File', 'Entity', 'Structure']
-
-
-
-# Utils for creating trees and converting them to plain dicts
-def tree(): return defaultdict(tree)
-
-
-def to_dict(tree):
-    """
-    turns a tree into a dictionary for printing purposes
-    """
-    if not isinstance(tree, dict):
-        return tree
-    return {k: to_dict(tree[k]) for k in tree}
-
-
-def get_flattened_values(d):
-    vals = []
-    for k, v in d.items():
-        if isinstance(v, dict):
-            vals.extend(get_flattened_values(v))
-        else:
-            vals.append(v)
-    return vals
 
 
 class File(object):
@@ -41,7 +18,9 @@ class File(object):
         """
         # if not exists(filename):
         #     raise OSError("File '%s' can't be found." % filename)
-        self.name = filename
+        self.path = filename
+        self.filename = basename(self.path)
+        self.dirname = dirname(self.path)
         self.entities = {}
 
     def matches(self, entities=None, extensions=None):
@@ -49,7 +28,7 @@ class File(object):
             if isinstance(extensions, string_types):
                 extensions = [extensions]
             extensions = '(' + '|'.join(extensions) + ')$'
-            if re.search(extensions, self.name) is None:
+            if re.search(extensions, self.path) is None:
                 return False
         if entities is not None:
             for name, val in entities.items():
@@ -60,7 +39,7 @@ class File(object):
 
     def as_named_tuple(self):
         _File = namedtuple('File', 'filename ' + ' '.join(self.entities.keys()))
-        return _File(filename=self.name, **self.entities)
+        return _File(filename=self.path, **self.entities)
 
 
 class Entity(object):
@@ -104,7 +83,7 @@ class Entity(object):
         Args:
             f (File): The File instance to match against.
         """
-        m = self.regex.search(f.name)
+        m = self.regex.search(f.path)
         if m is not None:
             val = m.group(1)
             f.entities[self.name] = val
@@ -135,6 +114,7 @@ class Structure(object):
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
+        self.root = self.config['root']
 
         # Set up the entities we need to track
         for e in self.config['entities']:
@@ -153,12 +133,13 @@ class Structure(object):
                 # Only keep Files that match at least one Entity, and all
                 # mandatory Entities
                 if fe and not (self.mandatory - set(fe)):
-                    self.files[f.name] = f
+                    self.files[f.path] = f
                     # Bind the File to all of the matching entities
                     for ent, val in f.entities.items():
-                        self.entities[ent].add_file(f.name, val)
+                        self.entities[ent].add_file(f.path, val)
 
-    def get(self, filters=None, extensions=None):
+    def get(self, filters=None, extensions=None, return_type='file',
+            target=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Structure.
         Args:
@@ -169,16 +150,48 @@ class Structure(object):
                 would return only files that match the first two subjects.
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
+            return_type (str): Type of result to return. Valid values:
+                'file': returns a list of namedtuples containing file name as
+                    well as attribute/value pairs for all named entities.
+                'dir': returns a list of directories.
+                'id': returns a list of unique IDs. Must be used together with
+                    a valid target.
+            target (str): The name of the target entity to get results for
+                (if return_type is 'dir' or 'id').
+
         Returns:
             A nested dictionary, with the levels of the hierarchy defined
             in a json spec file (currently using the "result" key).
         """
         result = []
+        if filters is None:
+            filters = {}
+        filters.update(kwargs)
         for filename, file in self.files.items():
             if not file.matches(filters, extensions):
                 continue
             result.append(file.as_named_tuple())
-        return result
+
+        if return_type == 'file':
+            return result
+        else:
+            if target is None:
+                raise ValueError('If return_type is "id" or "dir", a valid '
+                                 'target entity must also be specified.')
+            result = [x for x in result if hasattr(x, target)]
+            result = list(set([getattr(x, target) for x in result]))
+            if return_type == 'id':
+                return result
+            elif return_type == 'dir':
+                template = self.entities[target].directory
+                if template is None:
+                    raise ValueError('Return type set to directory, but no '
+                                     'directory template is defined for the '
+                                     'target entity (%s).')
+                return [template.replace('{%s}' % target, x) for x in result]
+            else:
+                raise ValueError("Invalid return_type specified (must be one "
+                                 "of 'file', 'id', or 'dir'.")
 
     def find(self, target, start=None):
 
@@ -189,7 +202,7 @@ class Structure(object):
                 return target
 
         if target in self.entities.keys():
-            candidates = self.entities[target].files
+            candidates = list(self.entities[target].files.keys())
         else:
             candidates = []
             for root, directories, filenames in os.walk(path):
@@ -200,10 +213,27 @@ class Structure(object):
         if start is None:
             return candidates
 
-        order = self.config.get('inheritance', self.entities.keys())
-        if not isinstance(order[0], (list, tuple)):
-            order = [order]
-        order = itertools.product(*order)
+        # Walk up the file hierarchy from start, find first match
+        if not exists(start):
+            raise OSError("The file '%s' doesn't exist." % start)
+        elif not start.startswith(self.root):
+            raise ValueError("The file '%s' is not contained within the "
+                             "current project directory (%s)." % (start, self.root))
+        rel = relpath(dirname(start), self.root)
+        sep = os.path.sep
+        chunks = rel.split(sep)
+        n_chunks = len(chunks)
+        for i in range(n_chunks, -1, -1):
+            path = join(self.root, *chunks[:i])
+            patt =  path + '\%s[^\%s]+$' % (sep, sep)
+            matches = [x for x in candidates if re.search(patt, x)]
+            if matches:
+                if len(matches) == 1:
+                    return matches[0]
+                else:
+                    raise ValueError("Ambiguous target: more than one candidate "
+                                     "file found in directory '%s'." % path)
+        return None
 
     def unique(self, entity):
         """
