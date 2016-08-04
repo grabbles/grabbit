@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from collections import defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict, namedtuple
 from six import string_types
 from os.path import join, exists
 import itertools
@@ -54,6 +54,10 @@ class File(object):
                     re.search(val, self.entities[name]) is None:
                     return False
         return True
+
+    def as_named_tuple(self):
+        _File = namedtuple('File', 'filename ' + ' '.join(self.entities.keys()))
+        return _File(filename=self.name, **self.entities)
 
 
 class Entity(object):
@@ -151,66 +155,37 @@ class Structure(object):
                     for ent, val in f.entities.items():
                         self.entities[ent].add_file(f.name, val)
 
-    def get(self, what=None, return_type='file', filter=None, extensions=None,
-            flatten=False):
+    def get(self, filters=None, extensions=None):
         """
         Retrieve files and/or metadata from the current Structure.
         Args:
-            what (str, list): A specification of the hierarchical structure of
-                the returned dictionary. Entities will be nested inside one
-                another based on the order in the passed list. For example,
-                ['subject', 'session', 'run'] will return a dictionary of
-                subject_key => sessions, then session_key => runs, etc.
-                Any existing entities omitted from the hierarchy list will be
-                ignored in the result. For example, ['subject', 'run'] will
-                implicitly collapse over all sessions. If hierarchy is None,
-                will attempt to default to a 'hierarchy' key in the JSON
-                config file. If no key is found in the config, all of the
-                entities will be used in the order they were created.
             return_type (str): What to return. At present, only 'file' works.
-            filter (dict): A dictionary of optional key/values to filter the
+            filters (dict): A dictionary of optional key/values to filter the
                 entities on. Keys are entity names, values are regexes to
                 filter on. For example, passing filter={ 'subject': 'sub-[12]'}
                 would return only files that match the first two subjects.
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
-            flatten (bool): If True, all values in the nested dictionary
-                returned by default will be flattened into a single list. This
-                is useful when specifying a filter argument--e.g., to return
-                all and only the bold images for run 1 for all subjects.
         Returns:
             A nested dictionary, with the levels of the hierarchy defined
             in a json spec file (currently using the "result" key).
         """
-        if isinstance(what, string_types):
-            what = [what]
-
         result = tree()
-
-        if what is None:
-            what = self.config.get('hierarchy', self.entities.keys())
 
         if extensions is not None:
             extensions = '(' + '|'.join(extensions) + ')$'
 
+        result = []
+
         for filename, file in self.files.items():
 
             # Filter on entities and extensions
-            if not file.matches(filter, extensions):
+            if not file.matches(filters, extensions):
                 continue
 
-            _call = 'result'
+            result.append(file.as_named_tuple())
 
-            for i, ent in enumerate(what):
-                missing_value = self.entities[ent].missing_value
-                key = file.entities.get(ent, missing_value)
-                _call += '["%s"]' % key
-
-            _call += ' = "%s"' % (filename)
-            exec(_call)
-
-        result = to_dict(result)
-        return get_flattened_values(result) if flatten else result
+        return result
 
     def find(self, target, start=None):
 
