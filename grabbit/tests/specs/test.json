@@ -6,18 +6,22 @@
       "directory": "({base_dir}/{subject})"
     },
     {
-      "name": "run",
-      "pattern": "(run-\\d+)"
-    },
-    {
       "name": "session",
       "pattern": "(ses-\\d)",
       "mandatory": false,
       "missing_value": "ses-1"
     },
     {
+      "name": "run",
+      "pattern": "(run-\\d+)"
+    },
+    {
       "name": "type",
       "pattern": ".*_(.*?)\\."
+    },
+    {
+      "name": "bval",
+      "pattern": "(.*\\.bval)"
     }
   ],
   "hierarchy": [
