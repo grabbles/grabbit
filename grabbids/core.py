@@ -3,7 +3,8 @@ import os
 import re
 from collections import defaultdict, OrderedDict
 from six import string_types
-from os.path import join
+from os.path import join, exists
+import itertools
 
 __all__ = ['File', 'Entity', 'Structure']
 
@@ -47,7 +48,7 @@ class File(object):
 class Entity(object):
 
     def __init__(self, name, pattern, mandatory=False, missing_value=None,
-                 directory=None):
+                 directory=None, inherit=None, **kwargs):
         """
         Represents a single entity defined in the JSON specification.
         Args:
@@ -55,6 +56,13 @@ class Entity(object):
             pattern (str): A regex pattern used to match against file names.
                 Must define at least one group, and only the first group is
                 kept as the match.
+            mandatory (bool): If True, every File _must_ match this entity.
+            missing_value (str): Value to use in cases where a placeholder is
+                inserted into a hierarchy (e.g., the user wants a hierarchy
+                like subject => session => run, but there's only one session).
+                If missing_value is None, the name of the entity will be used.
+            inherit (list): Specification of the inheritance pattern.
+            kwargs (dict): Additional keyword arguments.
         """
         self.name = name
         self.pattern = pattern
@@ -63,6 +71,7 @@ class Entity(object):
             missing_value = self.name
         self.missing_value = missing_value
         self.directory = directory
+        self.inherit = inherit
         self.files = {}
         self.regex = re.compile(pattern)
 
@@ -103,14 +112,14 @@ class Structure(object):
                 that defines the entities and paths for the current structure.
             path (str): The root path of the structure.
         """
-        self.spec = json.load(open(specification, 'r'))
+        self.config = json.load(open(specification, 'r'))
         self.path = path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
 
         # Set up the entities we need to track
-        for e in self.spec['entities']:
+        for e in self.config['entities']:
             ent = Entity(**e)
             if ent.mandatory:
                 self.mandatory.add(ent)
@@ -131,22 +140,12 @@ class Structure(object):
                     for ent, val in f.entities.items():
                         self.entities[ent].add_file(f.name, val)
 
-    def get(self, entities, return_type='file', filter=None, extensions=None,
-            hierarchy=None, flatten=False):
+    def get(self, what=None, return_type='file', filter=None, extensions=None,
+            flatten=False):
         """
         Retrieve files and/or metadata from the current Structure.
         Args:
-            entities (str, iterable): One or more entities to retrieve data
-                for. Only files that match at least one of the passed entity
-                names will be returned.
-            return_type (str): What to return. At present, only 'file' works.
-            filter (dict): A dictionary of optional key/values to filter the
-                entities on. Keys are entity names, values are regexes to
-                filter on. For example, passing filter={ 'subject': 'sub-[12]'}
-                would return only files that match the first two subjects.
-            extensions (str, list): One or more file extensions to filter on.
-                Files with any other extensions will be excluded.
-            hierarchy (list): A specification of the hierarchical structure of
+            what (str, list): A specification of the hierarchical structure of
                 the returned dictionary. Entities will be nested inside one
                 another based on the order in the passed list. For example,
                 ['subject', 'session', 'run'] will return a dictionary of
@@ -157,6 +156,16 @@ class Structure(object):
                 will attempt to default to a 'hierarchy' key in the JSON
                 config file. If no key is found in the config, all of the
                 entities will be used in the order they were created.
+            entities (str, iterable): One or more entities to retrieve data
+                for. Only files that match at least one of the passed entity
+                names will be returned.
+            return_type (str): What to return. At present, only 'file' works.
+            filter (dict): A dictionary of optional key/values to filter the
+                entities on. Keys are entity names, values are regexes to
+                filter on. For example, passing filter={ 'subject': 'sub-[12]'}
+                would return only files that match the first two subjects.
+            extensions (str, list): One or more file extensions to filter on.
+                Files with any other extensions will be excluded.
             flatten (bool): If True, all values in the nested dictionary
                 returned by default will be flattened into a single list. This
                 is useful when specifying a filter argument--e.g., to return
@@ -170,8 +179,8 @@ class Structure(object):
 
         result = tree()
 
-        if hierarchy is None:
-            hierarchy = self.spec.get('hierarchy', self.entities.keys())
+        if what is None:
+            what = self.config.get('hierarchy', self.entities.keys())
 
         if extensions is not None:
             extensions = '(' + '|'.join(extensions) + ')$'
@@ -180,7 +189,7 @@ class Structure(object):
 
             include = True
             _call = 'result'
-            for i, ent in enumerate(hierarchy):
+            for i, ent in enumerate(what):
                 missing_value = self.entities[ent].missing_value
                 key = file.entities.get(ent, missing_value)
                 _call += '["%s"]' % key
