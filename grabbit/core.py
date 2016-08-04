@@ -46,6 +46,9 @@ class File(object):
 
     def matches(self, entities=None, extensions=None):
         if extensions is not None:
+            if isinstance(extensions, string_types):
+                extensions = [extensions]
+            extensions = '(' + '|'.join(extensions) + ')$'
             if re.search(extensions, self.name) is None:
                 return False
         if entities is not None:
@@ -170,21 +173,11 @@ class Structure(object):
             A nested dictionary, with the levels of the hierarchy defined
             in a json spec file (currently using the "result" key).
         """
-        result = tree()
-
-        if extensions is not None:
-            extensions = '(' + '|'.join(extensions) + ')$'
-
         result = []
-
         for filename, file in self.files.items():
-
-            # Filter on entities and extensions
             if not file.matches(filters, extensions):
                 continue
-
             result.append(file.as_named_tuple())
-
         return result
 
     def find(self, target, start=None):
