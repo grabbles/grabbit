@@ -44,6 +44,17 @@ class File(object):
         self.name = filename
         self.entities = {}
 
+    def matches(self, entities=None, extensions=None):
+        if extensions is not None:
+            if re.search(extensions, self.name) is None:
+                return False
+        if entities is not None:
+            for name, val in entities.items():
+                if name not in self.entities or \
+                    re.search(val, self.entities[name]) is None:
+                    return False
+        return True
+
 
 class Entity(object):
 
@@ -156,9 +167,6 @@ class Structure(object):
                 will attempt to default to a 'hierarchy' key in the JSON
                 config file. If no key is found in the config, all of the
                 entities will be used in the order they were created.
-            entities (str, iterable): One or more entities to retrieve data
-                for. Only files that match at least one of the passed entity
-                names will be returned.
             return_type (str): What to return. At present, only 'file' works.
             filter (dict): A dictionary of optional key/values to filter the
                 entities on. Keys are entity names, values are regexes to
@@ -174,8 +182,8 @@ class Structure(object):
             A nested dictionary, with the levels of the hierarchy defined
             in a json spec file (currently using the "result" key).
         """
-        if isinstance(entities, string_types):
-            entities = [entities]
+        if isinstance(what, string_types):
+            what = [what]
 
         result = tree()
 
@@ -187,31 +195,49 @@ class Structure(object):
 
         for filename, file in self.files.items():
 
-            include = True
+            # Filter on entities and extensions
+            if not file.matches(filter, extensions):
+                continue
+
             _call = 'result'
+
             for i, ent in enumerate(what):
                 missing_value = self.entities[ent].missing_value
                 key = file.entities.get(ent, missing_value)
                 _call += '["%s"]' % key
 
-                # Filter on entity values
-                if filter is not None and ent in filter:
-                    if re.search(filter[ent], key) is None:
-                        include = False
-                        break
-
-                # Filter on extensions
-                if extensions is not None:
-                    if re.search(extensions, filename) is None:
-                        include = False
-                        break
-
-            if include:
-                _call += ' = "%s"' % (filename)
-                exec(_call)
+            _call += ' = "%s"' % (filename)
+            exec(_call)
 
         result = to_dict(result)
         return get_flattened_values(result) if flatten else result
+
+    def find(self, target, start=None):
+
+        # Try to take the easy way out
+        if start is not None:
+            _target = start.split('.')[0] + '.' + target
+            if exists(_target):
+                return target
+
+        if target in self.entities.keys():
+            candidates = self.entities[target].files
+        else:
+            candidates = []
+            for root, directories, filenames in os.walk(path):
+                for f in filenames:
+                    if re.search(target + '$', f):
+                        candidates.append(f)
+
+        if start is None:
+            return candidates
+
+        order = self.config.get('inheritance', self.entities.keys())
+        if not isinstance(order[0], (list, tupe)):
+            order = [order]
+        order = itertools.product(*order)
+        print(order)
+
 
     def unique(self, entity):
         """
