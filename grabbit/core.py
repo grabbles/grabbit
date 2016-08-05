@@ -175,6 +175,8 @@ class Layout(object):
             ent = Entity(**kwargs)
             if ent.mandatory:
                 self.mandatory.add(ent)
+            if ent.directory is not None:
+                ent.directory = ent.directory.replace('{{root}}', self.root)
             self.entities[ent.name] = ent
 
     def get(self, extensions=None, return_type='file',
@@ -216,16 +218,23 @@ class Layout(object):
                 raise ValueError('If return_type is "id" or "dir", a valid '
                                  'target entity must also be specified.')
             result = [x for x in result if hasattr(x, target)]
-            result = list(set([getattr(x, target) for x in result]))
+
             if return_type == 'id':
-                return result
+                return list(set([getattr(x, target) for x in result]))
             elif return_type == 'dir':
                 template = self.entities[target].directory
                 if template is None:
                     raise ValueError('Return type set to directory, but no '
                                      'directory template is defined for the '
-                                     'target entity (%s).')
-                return [template.replace('{%s}' % target, x) for x in result]
+                                     'target entity (\"%s\").' % target)
+                # Inject entity IDs
+                to_rep = re.findall('\{(.*?)\}', template)
+                for i, file in enumerate(result):
+                    dir_ = template
+                    for ent in to_rep:
+                        dir_ = dir_.replace('{%s}' % ent, getattr(file, ent))
+                    result[i] = dir_
+                return list(set(result))
             else:
                 raise ValueError("Invalid return_type specified (must be one "
                                  "of 'file', 'id', or 'dir'.")
