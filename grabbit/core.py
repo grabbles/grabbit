@@ -3,9 +3,8 @@ import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
 from six import string_types
-from os.path import join, exists, basename, dirname, relpath
+from os.path import join, exists, basename, dirname
 import os
-import itertools
 
 __all__ = ['File', 'Entity', 'Layout']
 
@@ -213,6 +212,7 @@ class Layout(object):
 
         if return_type == 'file':
             return result
+
         else:
             if target is None:
                 raise ValueError('If return_type is "id" or "dir", a valid '
@@ -221,20 +221,23 @@ class Layout(object):
 
             if return_type == 'id':
                 return list(set([getattr(x, target) for x in result]))
+
             elif return_type == 'dir':
                 template = self.entities[target].directory
                 if template is None:
                     raise ValueError('Return type set to directory, but no '
                                      'directory template is defined for the '
                                      'target entity (\"%s\").' % target)
-                # Inject entity IDs
+                # Construct regex search pattern from target directory template
                 to_rep = re.findall('\{(.*?)\}', template)
-                for i, file in enumerate(result):
-                    dir_ = template
-                    for ent in to_rep:
-                        dir_ = dir_.replace('{%s}' % ent, getattr(file, ent))
-                    result[i] = dir_
-                return list(set(result))
+                for ent in to_rep:
+                    patt = self.entities[ent].pattern
+                    template = template.replace('{%s}' % ent, patt)
+                template += '[^\%s]*$' % os.path.sep
+                matches = [f.dirname for f in self.files.values() \
+                           if re.search(template, f.dirname)]
+                return list(set(matches))
+
             else:
                 raise ValueError("Invalid return_type specified (must be one "
                                  "of 'file', 'id', or 'dir'.")
