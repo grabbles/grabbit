@@ -178,13 +178,14 @@ class Layout(object):
                 ent.directory = ent.directory.replace('{{root}}', self.root)
             self.entities[ent.name] = ent
 
-    def get(self, return_type='file', target=None, extensions=None, **kwargs):
+    def get(self, return_type='tuple', target=None, extensions=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
         Args:
             return_type (str): Type of result to return. Valid values:
-                'file': returns a list of namedtuples containing file name as
+                'tuple': returns a list of namedtuples containing file name as
                     well as attribute/value pairs for all named entities.
+                'file': returns a list of File instances.
                 'dir': returns a list of directories.
                 'id': returns a list of unique IDs. Must be used together with
                     a valid target.
@@ -206,10 +207,13 @@ class Layout(object):
         for filename, file in self.files.items():
             if not file._matches(filters, extensions):
                 continue
-            result.append(file.as_named_tuple())
+            result.append(file)
 
         if return_type == 'file':
             return result
+
+        if return_type == 'tuple':
+            return [r.as_named_tuple() for r in result]
 
         else:
             if target is None:
@@ -259,4 +263,12 @@ class Layout(object):
         """
         return self.entities[entity].count(files)
 
-
+    def as_data_frame(self, **kwargs):
+        import pandas as pd
+        if kwargs:
+            files = self.get(return_type='file', **kwargs)
+        else:
+            files = self.files.values()
+        data = pd.DataFrame.from_records([f.entities for f in files])
+        data.insert(0, 'path', [f.path for f in files])
+        return data
