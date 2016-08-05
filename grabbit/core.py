@@ -7,7 +7,7 @@ from os.path import join, exists, basename, dirname, relpath
 import os
 import itertools
 
-__all__ = ['File', 'Entity', 'Structure']
+__all__ = ['File', 'Entity', 'Layout']
 
 
 class File(object):
@@ -33,7 +33,7 @@ class File(object):
         if entities is not None:
             for name, val in entities.items():
                 if name not in self.entities or \
-                    re.search(val, self.entities[name]) is None:
+                    re.search(str(val), self.entities[name]) is None:
                     return False
         return True
 
@@ -99,15 +99,15 @@ class Entity(object):
         return len(self.files) if files else len(self.unique())
 
 
-class Structure(object):
+class Layout(object):
 
     def __init__(self, specification, path):
         """
         A container for all the files and metadata found at the specified path.
         Args:
             specification (str): The path to the JSON specification file
-                that defines the entities and paths for the current structure.
-            path (str): The root path of the structure.
+                that defines the entities and paths for the current layout.
+            path (str): The root path of the layout.
         """
         self.config = json.load(open(specification, 'r'))
         self.path = path
@@ -141,7 +141,7 @@ class Structure(object):
     def get(self, filters=None, extensions=None, return_type='file',
             target=None, **kwargs):
         """
-        Retrieve files and/or metadata from the current Structure.
+        Retrieve files and/or metadata from the current Layout.
         Args:
             return_type (str): What to return. At present, only 'file' works.
             filters (dict): A dictionary of optional key/values to filter the
