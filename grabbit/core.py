@@ -178,14 +178,10 @@ class Layout(object):
                 ent.directory = ent.directory.replace('{{root}}', self.root)
             self.entities[ent.name] = ent
 
-    def get(self, extensions=None, return_type='file',
-            target=None, **kwargs):
+    def get(self, return_type='file', target=None, extensions=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
         Args:
-            return_type (str): What to return. At present, only 'file' works.
-            extensions (str, list): One or more file extensions to filter on.
-                Files with any other extensions will be excluded.
             return_type (str): Type of result to return. Valid values:
                 'file': returns a list of namedtuples containing file name as
                     well as attribute/value pairs for all named entities.
@@ -194,6 +190,8 @@ class Layout(object):
                     a valid target.
             target (str): The name of the target entity to get results for
                 (if return_type is 'dir' or 'id').
+            extensions (str, list): One or more file extensions to filter on.
+                Files with any other extensions will be excluded.
             kwargs (dict): Any optional key/values to filter theentities on.
                 Keys are entity names, values are regexes to filter on. For
                 example, passing filter={ 'subject': 'sub-[12]'} would return
