@@ -61,7 +61,7 @@ class Entity(object):
     def __init__(self, name, pattern, mandatory=False, missing_value=None,
                  directory=None, inherit=None, **kwargs):
         """
-        Represents a single entity defined in the JSON specification.
+        Represents a single entity defined in the JSON config.
         Args:
             name (str): The name of the entity (e.g., 'subject', 'run', etc.)
             pattern (str): A regex pattern used to match against file names.
@@ -72,7 +72,7 @@ class Entity(object):
                 inserted into a hierarchy (e.g., the user wants a hierarchy
                 like subject => session => run, but there's only one session).
                 If missing_value is None, the name of the entity will be used.
-            inherit (list): Specification of the inheritance pattern.
+            inherit (list): specification of the inheritance pattern.
             kwargs (dict): Additional keyword arguments.
         """
         self.name = name
@@ -122,30 +122,41 @@ class Entity(object):
 
 class Layout(object):
 
-    def __init__(self, specification, path):
+    def __init__(self, path, config=None):
         """
         A container for all the files and metadata found at the specified path.
         Args:
-            specification (str): The path to the JSON specification file
+            config (str): The path to the JSON config file
                 that defines the entities and paths for the current layout.
             path (str): The root path of the layout.
         """
-        self.config = json.load(open(specification, 'r'))
-        self.path = path
+
+        self.root = path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
-        self.root = self.config['root']
 
-        # Set up the entities we need to track
-        for e in self.config['entities']:
-            ent = Entity(**e)
-            if ent.mandatory:
-                self.mandatory.add(ent)
-            self.entities[ent.name] = ent
+        if config is not None:
+            self._load_config(config)
+
+    def _load_config(self, config):
+        if isinstance(config, string_types):
+            config = json.load(open(config, 'r'))
+
+        for e in config['entities']:
+            self.add_entity(**e)
+
+        self.index()
+
+    def index(self):
+
+        # Reset indexes
+        self.files = {}
+        for ent in self.entities.values():
+            ent.files = {}
 
         # Loop over all files
-        for root, directories, filenames in os.walk(path):
+        for root, directories, filenames in os.walk(self.root):
             for f in filenames:
                 f = File(join(root, f))
                 for e in self.entities.values():
@@ -158,6 +169,13 @@ class Layout(object):
                     # Bind the File to all of the matching entities
                     for ent, val in f.entities.items():
                         self.entities[ent].add_file(f.path, val)
+
+    def add_entity(self, **kwargs):
+                # Set up the entities we need to track
+            ent = Entity(**kwargs)
+            if ent.mandatory:
+                self.mandatory.add(ent)
+            self.entities[ent.name] = ent
 
     def get(self, extensions=None, return_type='file',
             target=None, **kwargs):
@@ -212,48 +230,6 @@ class Layout(object):
                 raise ValueError("Invalid return_type specified (must be one "
                                  "of 'file', 'id', or 'dir'.")
 
-    def find(self, target, start=None):
-
-        # Try to take the easy way out
-        if start is not None:
-            _target = start.split('.')[0] + '.' + target
-            if exists(_target):
-                return target
-
-        if target in self.entities.keys():
-            candidates = list(self.entities[target].files.keys())
-        else:
-            candidates = []
-            for root, directories, filenames in os.walk(path):
-                for f in filenames:
-                    if re.search(target + '$', f):
-                        candidates.append(f)
-
-        if start is None:
-            return candidates
-
-        # Walk up the file hierarchy from start, find first match
-        if not exists(start):
-            raise OSError("The file '%s' doesn't exist." % start)
-        elif not start.startswith(self.root):
-            raise ValueError("The file '%s' is not contained within the "
-                             "current project directory (%s)." % (start, self.root))
-        rel = relpath(dirname(start), self.root)
-        sep = os.path.sep
-        chunks = rel.split(sep)
-        n_chunks = len(chunks)
-        for i in range(n_chunks, -1, -1):
-            path = join(self.root, *chunks[:i])
-            patt =  path + '\%s[^\%s]+$' % (sep, sep)
-            matches = [x for x in candidates if re.search(patt, x)]
-            if matches:
-                if len(matches) == 1:
-                    return matches[0]
-                else:
-                    raise ValueError("Ambiguous target: more than one candidate "
-                                     "file found in directory '%s'." % path)
-        return None
-
     def unique(self, entity):
         """
         Return a list of unique values for the named entity.
@@ -272,3 +248,5 @@ class Layout(object):
                 unique values of the entity.
         """
         return self.entities[entity].count(files)
+
+
