@@ -5,6 +5,9 @@ from collections import defaultdict, OrderedDict, namedtuple
 from six import string_types
 from os.path import join, exists, basename, dirname
 import os
+from functools import partial
+import warnings
+
 
 __all__ = ['File', 'Entity', 'Layout']
 
@@ -112,19 +115,25 @@ class Entity(object):
 
 class Layout(object):
 
-    def __init__(self, path, config=None):
+    def __init__(self, path, config=None, dynamic_getters=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
             config (str): The path to the JSON config file
                 that defines the entities and paths for the current layout.
             path (str): The root path of the layout.
+            dynamic_getters (bool): If True, a get_{entity_name}() method will
+                be dynamically added to the Layout every time a new Entity is
+                created. This is implemented by creating a partial function of
+                the get() function that sets the target argument to the
+                entity name.
         """
 
         self.root = path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
+        self.dynamic_getters = dynamic_getters
 
         if config is not None:
             self._load_config(config)
@@ -168,6 +177,20 @@ class Layout(object):
             if ent.directory is not None:
                 ent.directory = ent.directory.replace('{{root}}', self.root)
             self.entities[ent.name] = ent
+            if self.dynamic_getters:
+                func = partial(getattr(self, 'get'), target=ent.name,
+                               return_type='id')
+                try:
+                    import inflect
+                    func_name = inflect.engine().plural(ent.name)
+                except:
+                    func_name = ent.name
+                    warnings.warn("Unable to import the 'inflect' module; "
+                                  "creating the dynamic method name 'get_%s()'"
+                                  "If you want pluralized getter names, please"
+                                  " pip install inflect." % (func_name)
+                                  )
+                setattr(self, 'get_%s' % func_name, func)
 
     def get(self, return_type='tuple', target=None, extensions=None, **kwargs):
         """
