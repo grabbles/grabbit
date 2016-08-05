@@ -23,7 +23,17 @@ class File(object):
         self.dirname = dirname(self.path)
         self.entities = {}
 
-    def matches(self, entities=None, extensions=None):
+    def _matches(self, entities=None, extensions=None):
+        """
+        Checks whether the file matches all of the passed entities and
+        extensions.
+        Args:
+            entities (dict): A dictionary of entity names -> regex
+                patterns.
+            extensions (str, list): One or more file extensions to allow.
+        Returns:
+            True if _all_ entities and extensions match; False otherwise.
+        """
         if extensions is not None:
             if isinstance(extensions, string_types):
                 extensions = [extensions]
@@ -38,6 +48,10 @@ class File(object):
         return True
 
     def as_named_tuple(self):
+        """
+        Returns the File as a named tuple. The full path plus all entity
+        key/value pairs are returned as attributes.
+        """
         _File = namedtuple('File', 'filename ' + ' '.join(self.entities.keys()))
         return _File(filename=self.path, **self.entities)
 
@@ -93,9 +107,16 @@ class Entity(object):
         self.files[filename] = value
 
     def unique(self):
+        """ Returns all unique values/levels for the current entity. """
         return list(set(self.files.values()))
 
     def count(self, files=False):
+        """ Returns a count of unique values or files.
+        Args:
+            files (bool): When True, counts all files mapped to the Entity.
+                When False, counts all unique values.
+        Returns: an int.
+        """
         return len(self.files) if files else len(self.unique())
 
 
@@ -138,16 +159,12 @@ class Layout(object):
                     for ent, val in f.entities.items():
                         self.entities[ent].add_file(f.path, val)
 
-    def get(self, filters=None, extensions=None, return_type='file',
+    def get(self, extensions=None, return_type='file',
             target=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
         Args:
             return_type (str): What to return. At present, only 'file' works.
-            filters (dict): A dictionary of optional key/values to filter the
-                entities on. Keys are entity names, values are regexes to
-                filter on. For example, passing filter={ 'subject': 'sub-[12]'}
-                would return only files that match the first two subjects.
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
             return_type (str): Type of result to return. Valid values:
@@ -158,17 +175,19 @@ class Layout(object):
                     a valid target.
             target (str): The name of the target entity to get results for
                 (if return_type is 'dir' or 'id').
+            kwargs (dict): Any optional key/values to filter theentities on.
+                Keys are entity names, values are regexes to filter on. For
+                example, passing filter={ 'subject': 'sub-[12]'} would return
+                only files that match the first two subjects.
 
         Returns:
-            A nested dictionary, with the levels of the hierarchy defined
-            in a json spec file (currently using the "result" key).
+            A named tuple (default) or a list (see return_type for details).
         """
         result = []
-        if filters is None:
-            filters = {}
+        filters = {}
         filters.update(kwargs)
         for filename, file in self.files.items():
-            if not file.matches(filters, extensions):
+            if not file._matches(filters, extensions):
                 continue
             result.append(file.as_named_tuple())
 
