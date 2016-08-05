@@ -174,7 +174,7 @@ class Layout(object):
                 # Set up the entities we need to track
             ent = Entity(**kwargs)
             if ent.mandatory:
-                self.mandatory.add(ent)
+                self.mandatory.add(ent.name)
             if ent.directory is not None:
                 ent.directory = ent.directory.replace('{{root}}', self.root)
             self.entities[ent.name] = ent
