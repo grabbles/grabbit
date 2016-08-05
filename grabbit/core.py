@@ -210,10 +210,10 @@ class Layout(object):
             if target is None:
                 raise ValueError('If return_type is "id" or "dir", a valid '
                                  'target entity must also be specified.')
-            result = [x for x in result if hasattr(x, target)]
+            result = [x for x in result if target in x.entities]
 
             if return_type == 'id':
-                return list(set([getattr(x, target) for x in result]))
+                return list(set([x.entities[target] for x in result]))
 
             elif return_type == 'dir':
                 template = self.entities[target].directory
