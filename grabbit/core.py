@@ -264,7 +264,23 @@ class Layout(object):
         return self.entities[entity].count(files)
 
     def as_data_frame(self, **kwargs):
-        import pandas as pd
+        """
+        Return information for all Files tracked in the Layout as a pandas
+        DataFrame.
+        args:
+            kwargs: Optional keyword arguments passed on to get(). This allows
+                one to easily select only a subset of files for export.
+        Returns:
+            A pandas DataFrame, where each row is a file, and each column is
+                a tracked entity. NaNs are injected whenever a file has no
+                value for a given attribute.
+        """
+        try:
+            import pandas as pd
+        except ImportError:
+            raise ImportError("What are you doing trying to export a Layout "
+                              "as a pandas DataFrame when you don't have "
+                              "pandas installed? Eh? Eh?")
         if kwargs:
             files = self.get(return_type='file', **kwargs)
         else:
