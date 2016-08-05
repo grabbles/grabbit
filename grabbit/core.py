@@ -58,7 +58,7 @@ class File(object):
 class Entity(object):
 
     def __init__(self, name, pattern, mandatory=False, missing_value=None,
-                 directory=None, inherit=None, **kwargs):
+                 directory=None, **kwargs):
         """
         Represents a single entity defined in the JSON config.
         Args:
@@ -71,7 +71,6 @@ class Entity(object):
                 inserted into a hierarchy (e.g., the user wants a hierarchy
                 like subject => session => run, but there's only one session).
                 If missing_value is None, the name of the entity will be used.
-            inherit (list): specification of the inheritance pattern.
             kwargs (dict): Additional keyword arguments.
         """
         self.name = name
@@ -81,7 +80,6 @@ class Entity(object):
             missing_value = self.name
         self.missing_value = missing_value
         self.directory = directory
-        self.inherit = inherit
         self.files = {}
         self.regex = re.compile(pattern)
 
