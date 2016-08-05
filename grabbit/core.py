@@ -57,8 +57,8 @@ class File(object):
 
 class Entity(object):
 
-    def __init__(self, name, pattern, mandatory=False, missing_value=None,
-                 directory=None, **kwargs):
+    def __init__(self, name, pattern, mandatory=False, directory=None,
+                 **kwargs):
         """
         Represents a single entity defined in the JSON config.
         Args:
@@ -67,18 +67,11 @@ class Entity(object):
                 Must define at least one group, and only the first group is
                 kept as the match.
             mandatory (bool): If True, every File _must_ match this entity.
-            missing_value (str): Value to use in cases where a placeholder is
-                inserted into a hierarchy (e.g., the user wants a hierarchy
-                like subject => session => run, but there's only one session).
-                If missing_value is None, the name of the entity will be used.
             kwargs (dict): Additional keyword arguments.
         """
         self.name = name
         self.pattern = pattern
         self.mandatory = mandatory
-        if missing_value is None:
-            missing_value = self.name
-        self.missing_value = missing_value
         self.directory = directory
         self.files = {}
         self.regex = re.compile(pattern)
@@ -240,7 +233,7 @@ class Layout(object):
 
             else:
                 raise ValueError("Invalid return_type specified (must be one "
-                                 "of 'file', 'id', or 'dir'.")
+                                 "of 'tuple', 'file', 'id', or 'dir'.")
 
     def unique(self, entity):
         """
