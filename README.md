@@ -14,7 +14,7 @@ $ pip install grabbit
 Or, if you like to (a) do things the hard way or (b) live on the bleeding edge:
 
 ```
-$ git clone https://github.com/INCF/grabbit
+$ git clone https://github.com/grabbls/grabbit
 $ cd grabbit
 $ python setup.py develop
 ```
@@ -64,8 +64,9 @@ We can initialize a grabbit Layout object like so:
 
 ```python
 from grabbit import Layout
+config_file = 'my_config.json'
 project_root = '/my_project' 
-layout = Layout(project_root)
+layout = Layout(project_root, config_file)
 ```
 
 The `Layout` instance is a lightweight container for all of the files in the project directory. It automatically detects any entities found in the file paths, and allows us to perform simple but relatively powerful queries over the file tree. The entities are defined in a JSON configuration file (or explicitly added via add_entity() calls). For example, we might have "subject", "session", "run", and "type" entities defined as follows:
@@ -141,6 +142,18 @@ Some other examples of get() requests:
 ['T1map', 'magnitude2', 'magnitude1', 'scans', 'bold', 'phasediff', 'T1w', 'physio']
 ```
 
+For convenience, it's also possible to create getters for all entities when initializing the Layout, by passing dynamic_getters=True:
+
+```python
+>>> layout = Layout(project_root, dynamic_getters=True)
+>>> # Now we can call, e.g., get_subjects()
+>>> layout.get_subjects()
+['sub-09', 'sub-05', 'sub-08', 'sub-01', 'sub-02', 'sub-06', 'sub-04', 'sub-03', 'sub-07', 'sub-10']
+```
+
+Internally, the get_{entity}() methods are simply a partial function of the main get() method that sets target={entity}. So you can still pass all of the other arguments (e.g., to filter subjects by any of the other entities or return subject directories rather than unique IDs by specifying return_type='dir').
+
+### For everything else, there's pandas
 If you want to run more complex queries, grabbit provides an easy way to return the full project tree (or a subset of it) as a pandas DataFrame:
 
 ```python
