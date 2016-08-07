@@ -3,12 +3,13 @@
     {
       "name": "subject",
       "pattern": "(sub-\\d+)",
-      "directory": "({base_dir}/{subject})"
+      "directory": "{{root}}/{subject}"
     },
     {
       "name": "session",
       "pattern": "(ses-\\d)",
       "mandatory": false,
+      "directory": "{{root}}/{subject}/{session}",
       "missing_value": "ses-1"
     },
     {
@@ -20,14 +21,16 @@
       "pattern": ".*_(.*?)\\."
     },
     {
+      "name": "task",
+      "pattern": "task-(.*?)-"
+    },
+    {
+      "name": "acquisition",
+      "pattern": "acq-(.*?)-"
+    },
+    {
       "name": "bval",
       "pattern": "(.*\\.bval)"
     }
-  ],
-  "hierarchy": [
-    "subject",
-    "session",
-    "run",
-    "type"
   ]
 }

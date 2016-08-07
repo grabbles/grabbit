@@ -95,13 +95,8 @@ class TestLayout:
         data_dir = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
         config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
         layout = Layout(data_dir, config, dynamic_getters=True)
-        try:
-            import inflect
-            func = 'get_subjects'
-        except:
-            func = 'get_subject'
-        assert hasattr(layout, func)
-        assert 'sub-01' in getattr(layout, func)()
+        assert hasattr(layout, 'get_subjects')
+        assert 'sub-01' in getattr(layout, 'get_subjects')()
 
     def test_querying(self, layout):
         # def get(self, return_type='tuple', target=None, extensions=None, **kwargs):
