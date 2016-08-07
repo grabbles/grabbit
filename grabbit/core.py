@@ -2,7 +2,7 @@ import json
 import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
-from six import string_types
+from grabbit.external import string_types, inflect
 from os.path import join, exists, basename, dirname
 import os
 from functools import partial
@@ -180,16 +180,7 @@ class Layout(object):
             if self.dynamic_getters:
                 func = partial(getattr(self, 'get'), target=ent.name,
                                return_type='id')
-                try:
-                    import inflect
-                    func_name = inflect.engine().plural(ent.name)
-                except:
-                    func_name = ent.name
-                    warnings.warn("Unable to import the 'inflect' module; "
-                                  "creating the dynamic method name 'get_%s()'"
-                                  "If you want pluralized getter names, please"
-                                  " pip install inflect." % (func_name)
-                                  )
+                func_name = inflect.engine().plural(ent.name)
                 setattr(self, 'get_%s' % func_name, func)
 
     def get(self, return_type='tuple', target=None, extensions=None, **kwargs):
