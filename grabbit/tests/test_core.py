@@ -11,6 +11,12 @@ def file(tmpdir):
     fn.write('###')
     return File(os.path.join(str(fn)))
 
+@pytest.fixture(scope='module')
+def layout():
+    root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+    config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+    return Layout(root, config)
+
 
 class TestFile:
 
@@ -74,3 +80,49 @@ class TestEntity:
         e = Entity('prop', '-(\d+)')
         e.add_file('a', '1')
         assert e.files['a'] == '1'
+
+
+class TestLayout:
+
+    def test_init(self, layout):
+        assert os.path.exists(layout.root)
+        assert isinstance(layout.files, dict)
+        assert isinstance(layout.entities, dict)
+        assert isinstance(layout.mandatory, set)
+        assert not layout.dynamic_getters
+
+    def test_dynamic_getters(self):
+        data_dir = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+        layout = Layout(data_dir, config, dynamic_getters=True)
+        try:
+            import inflect
+            func = 'get_subjects'
+        except:
+            func = 'get_subject'
+        assert hasattr(layout, func)
+        assert 'sub-01' in getattr(layout, func)()
+
+    def test_querying(self, layout):
+        # def get(self, return_type='tuple', target=None, extensions=None, **kwargs):
+        result = layout.get(subject=1, run=1, session=1, extensions='nii.gz')
+        assert len(result) == 8
+        result = layout.get(subject='01', run=1, session=1, type='phasediff',
+                            extensions='.json')
+        assert len(result) == 1
+        assert 'phasediff.json' in result[0].filename
+        assert hasattr(result[0], 'run')
+        assert result[0].run == 'run-1'
+        result = layout.get(target='subject', return_type='id')
+        assert len(result) == 10
+        assert 'sub-03' in result
+        result = layout.get(target='subject', return_type='dir')
+        assert os.path.exists(result[0])
+        assert os.path.isdir(result[0])
+
+    def test_unique_and_count(self, layout):
+        result = layout.unique('subject')
+        assert len(result) == 10
+        assert 'sub-03' in result
+        assert layout.count('run') == 2
+        assert layout.count('run', files=True) > 2
