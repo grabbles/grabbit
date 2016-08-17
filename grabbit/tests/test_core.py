@@ -91,6 +91,19 @@ class TestLayout:
         assert isinstance(layout.mandatory, set)
         assert not layout.dynamic_getters
 
+    def test_absolute_paths(self, layout):
+        result = layout.get(subject=1, run=1, session=1)
+        assert all([os.path.isabs(f.filename) for f in result])
+        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        root = os.path.relpath(root)
+        config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+        layout = Layout(root, config, absolute_paths=False)
+        result = layout.get(subject=1, run=1, session=1)
+        assert not any([os.path.isabs(f.filename) for f in result])
+        layout = Layout(root, config, absolute_paths=True)
+        result = layout.get(subject=1, run=1, session=1)
+        assert all([os.path.isabs(f.filename) for f in result])
+
     def test_dynamic_getters(self):
         data_dir = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
         config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')

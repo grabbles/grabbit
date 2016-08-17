@@ -3,7 +3,7 @@ import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import string_types, inflect
-from os.path import join, exists, basename, dirname
+from os.path import join, exists, basename, dirname, abspath
 import os
 from functools import partial
 import warnings
@@ -115,7 +115,8 @@ class Entity(object):
 
 class Layout(object):
 
-    def __init__(self, path, config=None, dynamic_getters=False):
+    def __init__(self, path, config=None, dynamic_getters=False,
+                 absolute_paths=True):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -127,9 +128,14 @@ class Layout(object):
                 created. This is implemented by creating a partial function of
                 the get() function that sets the target argument to the
                 entity name.
+            absolute_paths (bool): If True, grabbit uses absolute file paths
+                everywhere (including when returning query results). If False,
+                the input path will determine the behavior (i.e., relative if
+                a relative path was passed, absolute if an absolute path was
+                passed).
         """
 
-        self.root = path
+        self.root = abspath(path) if absolute_paths else path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
