@@ -197,7 +197,7 @@ class Layout(object):
             return_type (str): Type of result to return. Valid values:
                 'tuple': returns a list of namedtuples containing file name as
                     well as attribute/value pairs for all named entities.
-                'file': returns a list of File instances.
+                'file': returns a list of matching filenames.
                 'dir': returns a list of directories.
                 'id': returns a list of unique IDs. Must be used together with
                     a valid target.
@@ -222,7 +222,7 @@ class Layout(object):
             result.append(file)
 
         if return_type == 'file':
-            return result
+            return natural_sort([f.path for f in result])
 
         if return_type == 'tuple':
             result = [r.as_named_tuple() for r in result]

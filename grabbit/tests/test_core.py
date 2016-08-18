@@ -127,6 +127,8 @@ class TestLayout:
         result = layout.get(target='subject', return_type='dir')
         assert os.path.exists(result[0])
         assert os.path.isdir(result[0])
+        result = layout.get(target='subject', type='phasediff', return_type='file')
+        assert all([os.path.exists(f) for f in result])
 
     def test_unique_and_count(self, layout):
         result = layout.unique('subject')
