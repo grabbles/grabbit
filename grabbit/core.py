@@ -3,6 +3,7 @@ import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import string_types, inflect
+from grabbit.utils import natural_sort
 from os.path import join, exists, basename, dirname, abspath
 import os
 from functools import partial
@@ -224,7 +225,8 @@ class Layout(object):
             return result
 
         if return_type == 'tuple':
-            return [r.as_named_tuple() for r in result]
+            result = [r.as_named_tuple() for r in result]
+            return natural_sort(result, field='filename')
 
         else:
             if target is None:
@@ -233,7 +235,8 @@ class Layout(object):
             result = [x for x in result if target in x.entities]
 
             if return_type == 'id':
-                return list(set([x.entities[target] for x in result]))
+                result = list(set([x.entities[target] for x in result]))
+                return natural_sort(result)
 
             elif return_type == 'dir':
                 template = self.entities[target].directory
@@ -249,7 +252,7 @@ class Layout(object):
                 template += '[^\%s]*$' % os.path.sep
                 matches = [f.dirname for f in self.files.values() \
                            if re.search(template, f.dirname)]
-                return list(set(matches))
+                return natural_sort(list(set(matches)))
 
             else:
                 raise ValueError("Invalid return_type specified (must be one "
