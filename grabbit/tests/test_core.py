@@ -130,6 +130,10 @@ class TestLayout:
         result = layout.get(target='subject', type='phasediff', return_type='file')
         assert all([os.path.exists(f) for f in result])
 
+    def test_natsort(self, layout):
+        result = layout.get(target='subject', return_type='id')
+        assert result[:5] == ['sub-01', 'sub-02', 'sub-03', 'sub-04', 'sub-05']
+
     def test_unique_and_count(self, layout):
         result = layout.unique('subject')
         assert len(result) == 10
