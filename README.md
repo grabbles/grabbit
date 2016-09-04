@@ -153,6 +153,8 @@ For convenience, it's also possible to create getters for all entities when init
 
 Internally, the get_{entity}() methods are simply a partial function of the main get() method that sets target={entity}. So you can still pass all of the other arguments (e.g., to filter subjects by any of the other entities or return subject directories rather than unique IDs by specifying return_type='dir').
 
+By default, `.get()` calls will return either absolute or relative paths, with behavior dictated by the project root passed in when the `Layout` was created (i.e., if an absolute project root was provided, returned paths will also be absolute, and similarly for relative project roots). You can force the `Layout` to always return absolute paths by setting `Layout(absolute_paths=True)`.
+
 ### For everything else, there's pandas
 If you want to run more complex queries, grabbit provides an easy way to return the full project tree (or a subset of it) as a pandas DataFrame:
 
