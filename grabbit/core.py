@@ -2,7 +2,7 @@ import json
 import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
-from grabbit.external import string_types, inflect
+from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, exists, basename, dirname, abspath
 import os
@@ -38,7 +38,7 @@ class File(object):
             True if _all_ entities and extensions match; False otherwise.
         """
         if extensions is not None:
-            if isinstance(extensions, string_types):
+            if isinstance(extensions, six.string_types):
                 extensions = [extensions]
             extensions = '(' + '|'.join(extensions) + ')$'
             if re.search(extensions, self.path) is None:
@@ -146,7 +146,7 @@ class Layout(object):
             self._load_config(config)
 
     def _load_config(self, config):
-        if isinstance(config, string_types):
+        if isinstance(config, six.string_types):
             config = json.load(open(config, 'r'))
 
         for e in config['entities']:
