@@ -15,7 +15,7 @@ def file(tmpdir):
 def layout():
     root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
     config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
-    return Layout(root, config)
+    return Layout(root, config, regex_match=True)
 
 
 class TestFile:
@@ -36,6 +36,8 @@ class TestFile:
         file.entities = {'task': 'rest', 'run': '2' }
         assert file._matches(entities={'task': 'rest', 'run': 2})
         assert not file._matches(entities={'task': 'rest', 'run': 4})
+        assert not file._matches(entities={'task': 'st'})
+        assert file._matches(entities={'task': 'st'}, regex_match=True)
 
     def test_named_tuple(self, file):
         file.entities = {'attrA': 'apple', 'attrB': 'banana' }
@@ -112,7 +114,8 @@ class TestLayout:
         assert 'sub-01' in getattr(layout, 'get_subjects')()
 
     def test_querying(self, layout):
-        # def get(self, return_type='tuple', target=None, extensions=None, **kwargs):
+
+        # With regex_search = True (as set in Layout())
         result = layout.get(subject=1, run=1, session=1, extensions='nii.gz')
         assert len(result) == 8
         result = layout.get(subject='01', run=1, session=1, type='phasediff',
@@ -121,6 +124,12 @@ class TestLayout:
         assert 'phasediff.json' in result[0].filename
         assert hasattr(result[0], 'run')
         assert result[0].run == 'run-1'
+
+        # With exact matching...
+        result = layout.get(subject=1, run=1, session=1, extensions='nii.gz',
+                            regex_match=False)
+        assert len(result) == 0
+
         result = layout.get(target='subject', return_type='id')
         assert len(result) == 10
         assert 'sub-03' in result

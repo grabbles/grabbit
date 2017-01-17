@@ -26,7 +26,7 @@ class File(object):
         self.dirname = dirname(self.path)
         self.entities = {}
 
-    def _matches(self, entities=None, extensions=None):
+    def _matches(self, entities=None, extensions=None, regex_match=False):
         """
         Checks whether the file matches all of the passed entities and
         extensions.
@@ -34,6 +34,8 @@ class File(object):
             entities (dict): A dictionary of entity names -> regex
                 patterns.
             extensions (str, list): One or more file extensions to allow.
+            regex_match (bool): Whether to require exact match (False) or regex
+                search (True) when comparing the query string to each entity.
         Returns:
             True if _all_ entities and extensions match; False otherwise.
         """
@@ -45,8 +47,9 @@ class File(object):
                 return False
         if entities is not None:
             for name, val in entities.items():
+                patt =  str(val) if regex_match else '^%s$' % val
                 if name not in self.entities or \
-                    re.search(str(val), self.entities[name]) is None:
+                    re.search(patt, self.entities[name]) is None:
                     return False
         return True
 
@@ -117,7 +120,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True):
+                 absolute_paths=True, regex_match=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -134,6 +137,10 @@ class Layout(object):
                 the input path will determine the behavior (i.e., relative if
                 a relative path was passed, absolute if an absolute path was
                 passed).
+            regex_search (bool): Whether to require exact matching (False)
+                or regex search (True) when comparing the query string to each
+                entity in .get() calls. This sets a default for the instance,
+                but can be overridden in individual .get() requests. 
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -141,6 +148,7 @@ class Layout(object):
         self.files = {}
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
+        self.regex_match = regex_match
 
         if config is not None:
             self._load_config(config)
@@ -190,7 +198,8 @@ class Layout(object):
                 func_name = inflect.engine().plural(ent.name)
                 setattr(self, 'get_%s' % func_name, func)
 
-    def get(self, return_type='tuple', target=None, extensions=None, **kwargs):
+    def get(self, return_type='tuple', target=None, extensions=None, 
+            regex_match=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
         Args:
@@ -205,6 +214,9 @@ class Layout(object):
                 (if return_type is 'dir' or 'id').
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
+            regex_match (bool or None): Whether to require exact matching (False)
+                or regex search (True) when comparing the query string to each
+                entity. If None (default), uses the value found in self.
             kwargs (dict): Any optional key/values to filter theentities on.
                 Keys are entity names, values are regexes to filter on. For
                 example, passing filter={ 'subject': 'sub-[12]'} would return
@@ -213,11 +225,14 @@ class Layout(object):
         Returns:
             A named tuple (default) or a list (see return_type for details).
         """
+        if regex_match is None:
+            regex_match = self.regex_match
+
         result = []
         filters = {}
         filters.update(kwargs)
         for filename, file in self.files.items():
-            if not file._matches(filters, extensions):
+            if not file._matches(filters, extensions, regex_match):
                 continue
             result.append(file)
 
