@@ -23,7 +23,7 @@ script:
   - python setup.py install  # test installation
   - cd examples; PYTHONPATH=.. runipy *.ipynb  # test example notebooks to run and not fail
   # for now flaking only the stub.py
-  - flake8 grabbit || :
+  # - flake8 grabbit
 
 after_success:
   - codecov
