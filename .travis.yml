@@ -14,13 +14,14 @@ cache:
   - pip
 
 install:
-  - travis_retry pip install -q codecov pytest
+  - travis_retry pip install -q codecov pytest runipy
   - pip install -e '.'
   - pip install flake8
 
 script:
   - PYTHONPATH=$PWD coverage run `which py.test` grabbit
   - python setup.py install  # test installation
+  - cd examples; PYTHONPATH=.. runipy *.ipynb  # test example notebooks to run and not fail
   # for now flaking only the stub.py
   - flake8 grabbit || :
 
