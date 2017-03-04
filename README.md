@@ -21,7 +21,7 @@ $ python setup.py develop
 
 ## Quickstart
 
-Suppose we've already defined (or otherwise obtained) a grabbit JSON configuration file that looks [like this](FIXME). And suppose we also have some kind of many-filed project that needs managing. Maybe it looks like this:
+Suppose we've already defined (or otherwise obtained) a grabbit JSON configuration file that looks [like this](https://github.com/grabbles/grabbit/blob/master/grabbit/tests/specs/test.json). And suppose we also have some kind of many-filed project that needs managing. Maybe it looks like this:
 
 ```
 ├── dataset_description.json

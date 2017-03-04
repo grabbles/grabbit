@@ -6,7 +6,7 @@ if len(set(('test', 'easy_install')).intersection(sys.argv)) > 0:
 
 tests_require = []
 
-VERSION = "0.0.5"
+VERSION = "0.0.5.1"
 
 setup(
     name="grabbit",
