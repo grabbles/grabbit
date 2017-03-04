@@ -14,8 +14,11 @@ def file(tmpdir):
 @pytest.fixture(scope='module')
 def layout():
     root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+    # note about test.json:
+    #  in this test.json 'subject' regex was left to contain possible leading 0
+    #  the other fields (run, session) has leading 0 stripped
     config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
-    return Layout(root, config, regex_match=True)
+    return Layout(root, config, regex_search=True)
 
 
 class TestFile:
@@ -33,14 +36,14 @@ class TestFile:
         assert file._matches()
         assert file._matches(extensions='nii.gz')
         assert not file._matches(extensions=['.txt', '.rtf'])
-        file.entities = {'task': 'rest', 'run': '2' }
+        file.entities = {'task': 'rest', 'run': '2'}
         assert file._matches(entities={'task': 'rest', 'run': 2})
         assert not file._matches(entities={'task': 'rest', 'run': 4})
         assert not file._matches(entities={'task': 'st'})
-        assert file._matches(entities={'task': 'st'}, regex_match=True)
+        assert file._matches(entities={'task': 'st'}, regex_search=True)
 
     def test_named_tuple(self, file):
-        file.entities = {'attrA': 'apple', 'attrB': 'banana' }
+        file.entities = {'attrA': 'apple', 'attrB': 'banana'}
         tup = file.as_named_tuple()
         assert(tup.filename == file.path)
         assert isinstance(tup, tuple)
@@ -95,15 +98,22 @@ class TestLayout:
 
     def test_absolute_paths(self, layout):
         result = layout.get(subject=1, run=1, session=1)
+        assert result  # that we got some entries
         assert all([os.path.isabs(f.filename) for f in result])
+
         root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
         root = os.path.relpath(root)
         config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+
         layout = Layout(root, config, absolute_paths=False)
+
         result = layout.get(subject=1, run=1, session=1)
+        assert result
         assert not any([os.path.isabs(f.filename) for f in result])
+
         layout = Layout(root, config, absolute_paths=True)
         result = layout.get(subject=1, run=1, session=1)
+        assert result
         assert all([os.path.isabs(f.filename) for f in result])
 
     def test_dynamic_getters(self):
@@ -111,7 +121,7 @@ class TestLayout:
         config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
         layout = Layout(data_dir, config, dynamic_getters=True)
         assert hasattr(layout, 'get_subjects')
-        assert 'sub-01' in getattr(layout, 'get_subjects')()
+        assert '01' in getattr(layout, 'get_subjects')()
 
     def test_querying(self, layout):
 
@@ -123,16 +133,16 @@ class TestLayout:
         assert len(result) == 1
         assert 'phasediff.json' in result[0].filename
         assert hasattr(result[0], 'run')
-        assert result[0].run == 'run-1'
+        assert result[0].run == '1'
 
         # With exact matching...
-        result = layout.get(subject=1, run=1, session=1, extensions='nii.gz',
-                            regex_match=False)
+        result = layout.get(subject='1', run=1, session=1, extensions='nii.gz',
+                            regex_search=False)
         assert len(result) == 0
 
         result = layout.get(target='subject', return_type='id')
         assert len(result) == 10
-        assert 'sub-03' in result
+        assert '03' in result
         result = layout.get(target='subject', return_type='dir')
         assert os.path.exists(result[0])
         assert os.path.isdir(result[0])
@@ -141,11 +151,11 @@ class TestLayout:
 
     def test_natsort(self, layout):
         result = layout.get(target='subject', return_type='id')
-        assert result[:5] == ['sub-01', 'sub-02', 'sub-03', 'sub-04', 'sub-05']
+        assert result[:5] == map("%02d".__mod__ , range(1, 6))
 
     def test_unique_and_count(self, layout):
         result = layout.unique('subject')
         assert len(result) == 10
-        assert 'sub-03' in result
+        assert '03' in result
         assert layout.count('run') == 2
         assert layout.count('run', files=True) > 2

@@ -26,7 +26,7 @@ class File(object):
         self.dirname = dirname(self.path)
         self.entities = {}
 
-    def _matches(self, entities=None, extensions=None, regex_match=False):
+    def _matches(self, entities=None, extensions=None, regex_search=False):
         """
         Checks whether the file matches all of the passed entities and
         extensions.
@@ -34,7 +34,7 @@ class File(object):
             entities (dict): A dictionary of entity names -> regex
                 patterns.
             extensions (str, list): One or more file extensions to allow.
-            regex_match (bool): Whether to require exact match (False) or regex
+            regex_search (bool): Whether to require exact match (False) or regex
                 search (True) when comparing the query string to each entity.
         Returns:
             True if _all_ entities and extensions match; False otherwise.
@@ -47,7 +47,13 @@ class File(object):
                 return False
         if entities is not None:
             for name, val in entities.items():
-                patt =  str(val) if regex_match else '^%s$' % val
+                patt = '%s' % val
+                if isinstance(val, (int, float)):
+                    # allow for leading zeros if a number was specified
+                    # regardless of regex_search
+                    patt = '0*' + patt
+                if not regex_search:
+                    patt = '^%s$' % patt
                 if name not in self.entities or \
                     re.search(patt, self.entities[name]) is None:
                     return False
@@ -120,13 +126,13 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_match=False):
+                 absolute_paths=True, regex_search=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
+            path (str): The root path of the layout.
             config (str): The path to the JSON config file
                 that defines the entities and paths for the current layout.
-            path (str): The root path of the layout.
             dynamic_getters (bool): If True, a get_{entity_name}() method will
                 be dynamically added to the Layout every time a new Entity is
                 created. This is implemented by creating a partial function of
@@ -137,10 +143,10 @@ class Layout(object):
                 the input path will determine the behavior (i.e., relative if
                 a relative path was passed, absolute if an absolute path was
                 passed).
-            regex_search (bool): Whether to require exact matching (False)
-                or regex search (True) when comparing the query string to each
-                entity in .get() calls. This sets a default for the instance,
-                but can be overridden in individual .get() requests. 
+            regex_search (bool): Whether to require exact matching (True)
+                or regex search (False, default) when comparing the query string
+                to each entity in .get() calls. This sets a default for the
+                instance, but can be overridden in individual .get() requests.
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -148,7 +154,7 @@ class Layout(object):
         self.files = {}
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
-        self.regex_match = regex_match
+        self.regex_search = regex_search
 
         if config is not None:
             self._load_config(config)
@@ -199,7 +205,7 @@ class Layout(object):
                 setattr(self, 'get_%s' % func_name, func)
 
     def get(self, return_type='tuple', target=None, extensions=None, 
-            regex_match=None, **kwargs):
+            regex_search=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
         Args:
@@ -214,10 +220,10 @@ class Layout(object):
                 (if return_type is 'dir' or 'id').
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
-            regex_match (bool or None): Whether to require exact matching (False)
+            regex_search (bool or None): Whether to require exact matching (False)
                 or regex search (True) when comparing the query string to each
                 entity. If None (default), uses the value found in self.
-            kwargs (dict): Any optional key/values to filter theentities on.
+            kwargs (dict): Any optional key/values to filter the entities on.
                 Keys are entity names, values are regexes to filter on. For
                 example, passing filter={ 'subject': 'sub-[12]'} would return
                 only files that match the first two subjects.
@@ -225,14 +231,14 @@ class Layout(object):
         Returns:
             A named tuple (default) or a list (see return_type for details).
         """
-        if regex_match is None:
-            regex_match = self.regex_match
+        if regex_search is None:
+            regex_search = self.regex_search
 
         result = []
         filters = {}
         filters.update(kwargs)
         for filename, file in self.files.items():
-            if not file._matches(filters, extensions, regex_match):
+            if not file._matches(filters, extensions, regex_search):
                 continue
             result.append(file)
 
