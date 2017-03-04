@@ -151,7 +151,7 @@ class TestLayout:
 
     def test_natsort(self, layout):
         result = layout.get(target='subject', return_type='id')
-        assert result[:5] == map("%02d".__mod__ , range(1, 6))
+        assert result[:5] == list(map("%02d".__mod__ , range(1, 6)))
 
     def test_unique_and_count(self, layout):
         result = layout.unique('subject')
