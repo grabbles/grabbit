@@ -1,0 +1,29 @@
+# vim ft=yaml
+# travis-ci.org definition for DueCredit build
+language: python
+sudo: false
+python:
+  - "2.7"
+#  - "3.2"
+#  - "3.3"
+  - "3.4"
+  - "3.5"
+#  - "pypy"
+#  - "pypy3"
+cache:
+  - pip
+
+install:
+  - travis_retry pip install -q codecov pytest
+  - pip install -e '.'
+  - pip install flake8
+
+script:
+  - PYTHONPATH=$PWD coverage run `which py.test` grabbit
+  - python setup.py install  # test installation
+  # for now flaking only the stub.py
+  - flake8 grabbit || :
+
+after_success:
+  - codecov
+
