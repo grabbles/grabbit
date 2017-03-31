@@ -1,7 +1,6 @@
 import pytest
 from grabbit import File, Entity, Layout
 import os
-from pprint import pprint
 
 
 @pytest.fixture
@@ -159,3 +158,15 @@ class TestLayout:
         assert '03' in result
         assert layout.count('run') == 2
         assert layout.count('run', files=True) > 2
+
+    def test_get_nearest(self, layout):
+        result = layout.get(subject='01', run=1, session=1, type='phasediff',
+                            extensions='.json', return_type='file')[0]
+        nearest = layout.get_nearest(result, type='sessions', extensions='tsv')
+        assert '7t_trt/sub-01/sub-01_sessions.tsv' in nearest
+        nearest = layout.get_nearest(result, extensions='tsv', all_=True)
+        assert len(nearest) == 3
+        nearest = layout.get_nearest(result, extensions='tsv', all_=True,
+                                     return_type='tuple')
+        assert len(nearest) == 3
+        assert nearest[0].subject == '01'
