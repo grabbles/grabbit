@@ -1,3 +1,11 @@
+0.0.6 (March 31, 2017)
+Minor improvements and bug fixes:
+- New get_nearest() method mainly intended for use in pybids/grabbids
+- Improved documentation and notebook examples
+- Improved tests
+- Added basic travis-ci support
+- Add _validate_file() method to be used in subclasses for file filtering
+
 0.0.5 (January 17, 2016)
 - Add option to control whether entity matching requires exact match or allows regex search.
 - Fixed six import bug

@@ -4,10 +4,8 @@ import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
-from os.path import join, exists, basename, dirname, abspath
-import os
+from os.path import join, basename, dirname, abspath, split, exists
 from functools import partial
-import warnings
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -19,8 +17,6 @@ class File(object):
         """
         Represents a single file.
         """
-        # if not exists(filename):
-        #     raise OSError("File '%s' can't be found." % filename)
         self.path = filename
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
@@ -144,9 +140,10 @@ class Layout(object):
                 a relative path was passed, absolute if an absolute path was
                 passed).
             regex_search (bool): Whether to require exact matching (True)
-                or regex search (False, default) when comparing the query string
-                to each entity in .get() calls. This sets a default for the
-                instance, but can be overridden in individual .get() requests.
+                or regex search (False, default) when comparing the query
+                string to each entity in .get() calls. This sets a default for
+                the instance, but can be overridden in individual .get()
+                requests.
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -168,6 +165,12 @@ class Layout(object):
 
         self.index()
 
+    def _validate_file(self, f):
+        ''' Override this in subclasses to provide additional file validation.
+        Will be called the first time each file is read in; if False is
+        returned, the file will be ignored and dropped from the layout. '''
+        return True
+
     def index(self):
 
         # Reset indexes
@@ -179,6 +182,8 @@ class Layout(object):
         for root, directories, filenames in os.walk(self.root):
             for f in filenames:
                 f = File(join(root, f))
+                if not self._validate_file(f):
+                    continue
                 for e in self.entities.values():
                     e.matches(f)
                 fe = f.entities.keys()
@@ -204,7 +209,7 @@ class Layout(object):
                 func_name = inflect.engine().plural(ent.name)
                 setattr(self, 'get_%s' % func_name, func)
 
-    def get(self, return_type='tuple', target=None, extensions=None, 
+    def get(self, return_type='tuple', target=None, extensions=None,
             regex_search=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
@@ -220,9 +225,10 @@ class Layout(object):
                 (if return_type is 'dir' or 'id').
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
-            regex_search (bool or None): Whether to require exact matching (False)
-                or regex search (True) when comparing the query string to each
-                entity. If None (default), uses the value found in self.
+            regex_search (bool or None): Whether to require exact matching
+                (False) or regex search (True) when comparing the query string
+                to each entity. If None (default), uses the value found in
+                self.
             kwargs (dict): Any optional key/values to filter the entities on.
                 Keys are entity names, values are regexes to filter on. For
                 example, passing filter={ 'subject': 'sub-[12]'} would return
@@ -323,3 +329,48 @@ class Layout(object):
         data = pd.DataFrame.from_records([f.entities for f in files])
         data.insert(0, 'path', [f.path for f in files])
         return data
+
+    def get_nearest(self, path, return_type='file', all_=False, **kwargs):
+
+        entities = {}
+        for name, ent in self.entities.items():
+            m = ent.regex.search(path)
+            if m:
+                entities[name] = m.group(1)
+
+        results = self.get(return_type='file', **kwargs)
+
+        folders = defaultdict(list)
+
+        for filename in results:
+            f = self.files[filename]
+            folders[f.dirname].append(f)
+
+        matches = []
+
+        def count_matches(f):
+            keys = set(entities.keys()) & set(f.entities.keys())
+            return sum([entities[k] == f.entities[k] for k in keys])
+
+        while True:
+            if path in folders and folders[path]:
+                if len(folders[path]) == 1:
+                    matches.append(folders[path][0])
+                else:
+                    # Sort by number of matching entities
+                    num_ents = [(f, count_matches(f)) for f in folders[path]]
+                    num_ents.sort(key=lambda x: x[1], reverse=True)
+                    matches.append(num_ents[0][0])
+                if not all_:
+                    break
+            try:
+                _path, _ = split(path)
+                if _path == path:
+                    break
+                path = _path
+            except:
+                break
+
+        matches = [m.path if return_type == 'file' else m.as_named_tuple()
+                   for m in matches]
+        return matches if all_ else matches[0] if matches else None
