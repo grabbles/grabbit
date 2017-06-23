@@ -14,7 +14,7 @@ $ pip install grabbit
 Or, if you like to (a) do things the hard way or (b) live on the bleeding edge:
 
 ```
-$ git clone https://github.com/grabbls/grabbit
+$ git clone https://github.com/grabbles/grabbit
 $ cd grabbit
 $ python setup.py develop
 ```
