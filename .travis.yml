@@ -1,20 +1,13 @@
 # vim ft=yaml
-# travis-ci.org definition for DueCredit build
 language: python
 sudo: false
 python:
   - "2.7"
-#  - "3.2"
-#  - "3.3"
-  - "3.4"
   - "3.5"
-#  - "pypy"
-#  - "pypy3"
-cache:
-  - pip
 
 install:
-  - travis_retry pip install -q codecov pytest runipy
+  - pip install pip --upgrade
+  - pip install codecov pytest runipy
   - pip install -e '.'
   - pip install flake8
 

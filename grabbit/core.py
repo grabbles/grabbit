@@ -4,7 +4,7 @@ import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
-from os.path import join, basename, dirname, abspath, split, exists
+from os.path import join, basename, dirname, abspath, split
 from functools import partial
 
 
@@ -30,7 +30,8 @@ class File(object):
             entities (dict): A dictionary of entity names -> regex
                 patterns.
             extensions (str, list): One or more file extensions to allow.
-            regex_search (bool): Whether to require exact match (False) or regex
+            regex_search (bool): Whether to require exact match (False) or
+                regex
                 search (True) when comparing the query string to each entity.
         Returns:
             True if _all_ entities and extensions match; False otherwise.
@@ -51,7 +52,7 @@ class File(object):
                 if not regex_search:
                     patt = '^%s$' % patt
                 if name not in self.entities or \
-                    re.search(patt, self.entities[name]) is None:
+                        re.search(patt, self.entities[name]) is None:
                     return False
         return True
 
