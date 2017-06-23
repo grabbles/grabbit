@@ -122,7 +122,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False):
+                 absolute_paths=True, regex_search=False, exclude_dir=None):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -144,6 +144,8 @@ class Layout(object):
                 string to each entity in .get() calls. This sets a default for
                 the instance, but can be overridden in individual .get()
                 requests.
+            exclude_dir (str): Regex by which to exclude directories (and their
+                children) from indexing.
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -152,6 +154,7 @@ class Layout(object):
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
+        self.exclude_dir = exclude_dir
 
         if config is not None:
             self._load_config(config)
@@ -179,7 +182,12 @@ class Layout(object):
             ent.files = {}
 
         # Loop over all files
-        for root, directories, filenames in os.walk(self.root):
+        for root, directories, filenames in os.walk(self.root, topdown=True):
+
+            # Exclude directories from further search if they match exclude regex
+            if self.exclude_dir is not None:
+                directories[:] = [d for d in directories if not re.match(self.exclude_dir, d)]
+
             for f in filenames:
                 f = File(join(root, f))
                 if not self._validate_file(f):
