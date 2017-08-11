@@ -1,3 +1,9 @@
+0.0.7 (August 11, 2017)
+Minor improvements and bug fixes:
+  - Adds option to use strict matching when calling get_nearest()
+  - Adds ability to exclude certain directories from indexing (thanks to @adelavega)
+  - Fix travis config
+
 0.0.6 (March 31, 2017)
 Minor improvements and bug fixes:
 - New get_nearest() method mainly intended for use in pybids/grabbids
