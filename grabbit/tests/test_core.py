@@ -162,11 +162,14 @@ class TestLayout:
     def test_get_nearest(self, layout):
         result = layout.get(subject='01', run=1, session=1, type='phasediff',
                             extensions='.json', return_type='file')[0]
-        nearest = layout.get_nearest(result, type='sessions', extensions='tsv')
+        nearest = layout.get_nearest(result, type='sessions', extensions='tsv',
+                                     ignore_strict_entities=['type'])
         assert '7t_trt/sub-01/sub-01_sessions.tsv' in nearest
-        nearest = layout.get_nearest(result, extensions='tsv', all_=True)
+        nearest = layout.get_nearest(result, extensions='tsv', all_=True,
+                                     ignore_strict_entities=['type'])
         assert len(nearest) == 3
         nearest = layout.get_nearest(result, extensions='tsv', all_=True,
-                                     return_type='tuple')
+                                     return_type='tuple',
+                                     ignore_strict_entities=['type'])
         assert len(nearest) == 3
         assert nearest[0].subject == '01'

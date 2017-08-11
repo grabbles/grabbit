@@ -331,13 +331,38 @@ class Layout(object):
         data.insert(0, 'path', [f.path for f in files])
         return data
 
-    def get_nearest(self, path, return_type='file', all_=False, **kwargs):
+    def get_nearest(self, path, return_type='file', strict=True, all_=False,
+                    ignore_strict_entities=None, **kwargs):
+        ''' Walk up the file tree from the specified path and return the
+        nearest matching file(s).
+        Args:
+            path (str): The file to search from.
+            return_type (str): What to return; must be one of 'file' (default)
+                or 'tuple'.
+            strict (bool): When True, all entities present in both the input
+                path and the target file(s) must match perfectly. When False,
+                files will be ordered by the number of matching entities, and
+                partial matches will be allowed.
+            all_ (bool): When True, returns all matching files. When False
+                (default), only returns the first match.
+            ignore_strict_entities (list): Optional list of entities to
+                exclude from strict matching when strict is True. This allows
+                one to search, e.g., for files of a different type while
+                matching all other entities perfectly by passing
+                ignore_strict_entities=['type'].
+            kwargs: Optional keywords to pass on to .get().
+        '''
 
         entities = {}
         for name, ent in self.entities.items():
             m = ent.regex.search(path)
             if m:
                 entities[name] = m.group(1)
+
+        # Remove any entities we want to ignore when strict matching is on
+        if strict and ignore_strict_entities is not None:
+            for k in ignore_strict_entities:
+                entities.pop(k, None)
 
         results = self.get(return_type='file', **kwargs)
 
@@ -347,21 +372,28 @@ class Layout(object):
             f = self.files[filename]
             folders[f.dirname].append(f)
 
-        matches = []
-
         def count_matches(f):
             keys = set(entities.keys()) & set(f.entities.keys())
-            return sum([entities[k] == f.entities[k] for k in keys])
+            shared = len(keys)
+            return [shared, sum([entities[k] == f.entities[k] for k in keys])]
+
+        matches = []
 
         while True:
             if path in folders and folders[path]:
-                if len(folders[path]) == 1:
-                    matches.append(folders[path][0])
-                else:
-                    # Sort by number of matching entities
-                    num_ents = [(f, count_matches(f)) for f in folders[path]]
-                    num_ents.sort(key=lambda x: x[1], reverse=True)
+
+                # Sort by number of matching entities. Also store number of
+                # common entities, for filtering when strict=True.
+                num_ents = [[f] + count_matches(f) for f in folders[path]]
+                # Filter out imperfect matches (i.e., where number of common
+                # entities does not equal number of matching entities).
+                if strict:
+                    num_ents = [f for f in num_ents if f[1] == f[2]]
+                num_ents.sort(key=lambda x: x[2], reverse=True)
+
+                if num_ents:
                     matches.append(num_ents[0][0])
+
                 if not all_:
                     break
             try:
