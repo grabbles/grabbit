@@ -6,7 +6,8 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
-
+from hdfs import Config
+import posixpath as psp
 
 __all__ = ['File', 'Entity', 'Layout']
 
@@ -123,7 +124,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, exclude_dir=None):
+                 absolute_paths=True, regex_search=False, exclude_dir=None, in_hdfs=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -149,13 +150,16 @@ class Layout(object):
                 children) from indexing.
         """
 
-        self.root = abspath(path) if absolute_paths else path
+        self.root = abspath(path) if absolute_paths or not in_hdfs else path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
         self.exclude_dir = exclude_dir
+        self.in_hdfs = in_hdfs
+
+        print(self.in_hdfs)
 
         if config is not None:
             self._load_config(config)
@@ -182,15 +186,24 @@ class Layout(object):
         for ent in self.entities.values():
             ent.files = {}
 
-        # Loop over all files
-        for root, directories, filenames in os.walk(self.root, topdown=True):
+        client = Config().get_client('dev')
 
+
+        # Loop over all files
+        dataset = client.walk(self.root) if self.in_hdfs else os.walk(self.root, topdown=True)
+
+        for root, directories, filenames in dataset:
             # Exclude directories from further search if they match exclude regex
             if self.exclude_dir is not None:
                 directories[:] = [d for d in directories if not re.match(self.exclude_dir, d)]
-
             for f in filenames:
-                f = File(join(root, f))
+                if self.in_hdfs:
+                    filepath = psp.join(root, f)
+                    with client.read(filepath) as reader:
+                        f = File(reader.read())
+                        f.path = filepath
+                else:
+                    f = File(join(root, f))
                 if not self._validate_file(f):
                     continue
                 for e in self.entities.values():
