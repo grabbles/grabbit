@@ -6,8 +6,6 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
-from hdfs import Config
-import posixpath as psp
 
 __all__ = ['File', 'Entity', 'Layout']
 
@@ -158,8 +156,7 @@ class Layout(object):
         self.regex_search = regex_search
         self.exclude_dir = exclude_dir
         self.in_hdfs = in_hdfs
-
-        print(self.in_hdfs)
+        
 
         if config is not None:
             self._load_config(config)
@@ -186,12 +183,20 @@ class Layout(object):
         for ent in self.entities.values():
             ent.files = {}
 
-        client = Config().get_client('dev')
+        dataset = None
+
+        if self.in_hdfs:
+
+            from hdfs import Config
+            import posixpath as psp
+
+            client = Config().get_client('dev')
+            dataset = client.walk(self.root)
+        else:
+            dataset = os.walk(self.root, topdown=True)            
 
 
         # Loop over all files
-        dataset = client.walk(self.root) if self.in_hdfs else os.walk(self.root, topdown=True)
-
         for root, directories, filenames in dataset:
             # Exclude directories from further search if they match exclude regex
             if self.exclude_dir is not None:
