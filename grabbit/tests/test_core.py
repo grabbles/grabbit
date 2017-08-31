@@ -17,7 +17,7 @@ def layout():
     #  in this test.json 'subject' regex was left to contain possible leading 0
     #  the other fields (run, session) has leading 0 stripped
     config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
-    return Layout(root, config, regex_search=True, exclude_dir='derivatives')
+    return Layout(root, config, regex_search=True)
 
 
 class TestFile:
@@ -174,6 +174,8 @@ class TestLayout:
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
 
-    def test_exclude_regex(self, layout):
+    def test_index_regex(self, layout):
         assert os.path.join(
             layout.root, 'derivatives/excluded.json') not in layout.files
+        assert os.path.join(
+            layout.root, 'models/excluded_model.json') not in layout.files

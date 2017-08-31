@@ -123,7 +123,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, exclude_dir=None):
+                 absolute_paths=True, regex_search=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -155,7 +155,7 @@ class Layout(object):
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
-        self.exclude_dir = exclude_dir
+        self.index_regex = None
 
         if config is not None:
             self._load_config(config)
@@ -166,6 +166,9 @@ class Layout(object):
 
         for e in config['entities']:
             self.add_entity(**e)
+
+        if 'index' in config:
+            self.index_regex = config['index']
 
         self.index()
 
@@ -185,9 +188,19 @@ class Layout(object):
         # Loop over all files
         for root, directories, filenames in os.walk(self.root, topdown=True):
 
-            # Exclude directories from further search if they match exclude regex
-            if self.exclude_dir is not None:
-                directories[:] = [d for d in directories if not re.match(self.exclude_dir, d)]
+            # Exclude/include top-level directories from further search
+            #if they match exclude regex
+            if root == self.root:
+                if self.index_regex:
+                    print(root)
+                    if 'exclude' in self.index_regex:
+                        for exclude_regex in self.index_regex['exclude']:
+                            directories[:] = [d for d in directories \
+                                              if not re.match(exclude_regex, d)]
+                    if 'include' in self.index_regex:
+                        for include_regex in self.index_regex['include']:
+                            directories[:] = [d for d in directories \
+                                              if re.match(include_regex, d)]
 
             for f in filenames:
                 f = File(join(root, f))

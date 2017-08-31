@@ -1,4 +1,8 @@
 {
+  "index" : {
+    "exclude" : ["derivatives"],
+    "include" : ["sub-(\\d+)"]
+  },
   "entities": [
     {
       "name": "subject",
