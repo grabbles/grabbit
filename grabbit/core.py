@@ -190,7 +190,7 @@ class Layout(object):
             from hdfs import Config
             import posixpath as psp
 
-            client = Config().get_client('dev')
+            client = Config().get_client()
             dataset = client.walk(self.root)
         else:
             dataset = os.walk(self.root, topdown=True)            
