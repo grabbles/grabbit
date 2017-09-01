@@ -192,7 +192,6 @@ class Layout(object):
             #if they match exclude regex
             if root == self.root:
                 if self.index_regex:
-                    print(root)
                     if 'exclude' in self.index_regex:
                         for exclude_regex in self.index_regex['exclude']:
                             directories[:] = [d for d in directories \
