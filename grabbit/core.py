@@ -176,10 +176,26 @@ class Layout(object):
         ''' Override this in subclasses to provide additional file validation.
         Will be called the first time each file is read in; if False is
         returned, the file will be ignored and dropped from the layout. '''
+        filename = f if isinstance(f, str) else f.filename
+        # If file matches any include regex, then true
+        ### For else?
+        ### If no explicit include, assume include all
+        include = False
+        for regex in self.index_regex.get('include', []):
+            if re.match(regex, filename):
+                include = True
+                break
+        if not include:
+            return False
+
+        # If file matches any excldue regex, then false
+        for regex in self.index_regex.get('exclude', []):
+            if re.match(regex ,filename):
+                return False
+
         return True
 
     def index(self):
-
         # Reset indexes
         self.files = {}
         for ent in self.entities.values():
@@ -187,20 +203,8 @@ class Layout(object):
 
         # Loop over all files
         for root, directories, filenames in os.walk(self.root, topdown=True):
-
-            # Exclude/include top-level directories from further search
-            #if they match exclude regex
-            if root == self.root:
-                if self.index_regex:
-                    if 'exclude' in self.index_regex:
-                        for exclude_regex in self.index_regex['exclude']:
-                            directories[:] = [d for d in directories \
-                                              if not re.match(exclude_regex, d)]
-                    if 'include' in self.index_regex:
-                        for include_regex in self.index_regex['include']:
-                            directories[:] = [d for d in directories \
-                                              if re.match(include_regex, d)]
-
+            # Only loop further over directories that pass regex
+            directories[:] = filter(self._validate_file, directories)
             for f in filenames:
                 f = File(join(root, f))
                 if not self._validate_file(f):

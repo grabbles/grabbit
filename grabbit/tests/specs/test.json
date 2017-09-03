@@ -1,7 +1,7 @@
 {
   "index" : {
     "exclude" : ["derivatives"],
-    "include" : ["sub-(\\d+)"]
+    "include" : ["sub-(\\d+)", "ses-.*", "func", "fmap", ".*\\..*"]
   },
   "entities": [
     {
