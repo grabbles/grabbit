@@ -173,20 +173,19 @@ class Layout(object):
         self.index()
 
     def _validate_file(self, f):
-        ''' Override this in subclasses to provide additional file validation.
+        ''' Extend this in subclasses to provide additional file validation.
         Will be called the first time each file is read in; if False is
         returned, the file will be ignored and dropped from the layout. '''
         filename = f if isinstance(f, str) else f.filename
+
         # If file matches any include regex, then true
-        ### For else?
-        ### If no explicit include, assume include all
-        include = False
-        for regex in self.index_regex.get('include', []):
-            if re.match(regex, filename):
-                include = True
-                break
-        if not include:
-            return False
+        include_regex = self.index_regex.get('include', [])
+        if include_regex:
+            for regex in include_regex:
+                if re.match(regex, filename):
+                    break
+            else:
+                return False
 
         # If file matches any excldue regex, then false
         for regex in self.index_regex.get('exclude', []):

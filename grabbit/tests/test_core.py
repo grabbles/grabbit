@@ -19,6 +19,14 @@ def layout():
     config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
     return Layout(root, config, regex_search=True)
 
+@pytest.fixture(scope='module')
+def layout2():
+    root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+    # note about test.json:
+    #  in this test.json 'subject' regex was left to contain possible leading 0
+    #  the other fields (run, session) has leading 0 stripped
+    config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
+    return Layout(root, config, regex_search=True)
 
 class TestFile:
 
@@ -174,8 +182,8 @@ class TestLayout:
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
 
-    def test_index_regex(self, layout):
+    def test_index_regex(self, layout, layout2):
         assert os.path.join(
             layout.root, 'derivatives/excluded.json') not in layout.files
         assert os.path.join(
-            layout.root, 'models/excluded_model.json') not in layout.files
+            layout2.root, 'models/excluded_model.json') not in layout2.files
