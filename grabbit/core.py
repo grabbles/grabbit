@@ -122,7 +122,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, exclude_dir=None, in_hdfs=False):
+                 absolute_paths=True, regex_search=False, exclude_dir=None):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -148,14 +148,13 @@ class Layout(object):
                 children) from indexing.
         """
 
-        self.root = abspath(path) if absolute_paths or not in_hdfs else path
+        self.root = abspath(path) if absolute_paths or 'hdfs://' not in path else path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
         self.exclude_dir = exclude_dir
-        self.in_hdfs = in_hdfs
         
 
         if config is not None:
@@ -185,13 +184,23 @@ class Layout(object):
 
         dataset = None
 
-        if self.in_hdfs:
+        in_hdfs = False
+
+        # If HDFS URL is not provided, will look for file in local FS
+        if 'hdfs://' in self.root:
+
+            in_hdfs = True
 
             from hdfs import Config
             import posixpath as psp
 
             client = Config().get_client()
+
+            # Format URL such that it's now relative to root
+            self.root = '/'.join(self.root.strip('hdfs://').split('/')[1:]).strip(client.root)
+
             dataset = client.walk(self.root)
+
         else:
             dataset = os.walk(self.root, topdown=True)            
 
@@ -202,7 +211,7 @@ class Layout(object):
             if self.exclude_dir is not None:
                 directories[:] = [d for d in directories if not re.match(self.exclude_dir, d)]
             for f in filenames:
-                if self.in_hdfs:
+                if in_hdfs:
                     filepath = psp.join(root, f)
                     with client.read(filepath) as reader:
                         f = File(reader.read())
