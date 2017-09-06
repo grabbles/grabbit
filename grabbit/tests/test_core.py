@@ -1,7 +1,9 @@
 import pytest
 from grabbit import File, Entity, Layout
 import os
+import posixpath as psp
 from hdfs import Config
+
 
 @pytest.fixture
 def file(tmpdir):
@@ -19,6 +21,16 @@ def layout():
     config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
     return Layout(root, config, regex_search=True, exclude_dir='derivatives')
 
+@pytest.fixture(scope='module')
+def layoutHDFS():
+    # make sure HDFS tests aren't executed if HDFS environment not present
+    try:
+        client = Config().get_client()
+        root = psp.join('hdfs://localhost:9000', client.root, 'data', '7t_trt')
+        config = psp.join('hdfs://localhost:9000', client.root, 'specs', 'test.json')
+        return Layout(root, config, regex_search=True, exclude_dir='derivatives')
+    except:
+        return None
 
 class TestFile:
 
