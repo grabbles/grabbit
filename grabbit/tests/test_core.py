@@ -1,7 +1,7 @@
 import pytest
 from grabbit import File, Entity, Layout
 import os
-
+from hdfs import Config
 
 @pytest.fixture
 def file(tmpdir):
@@ -177,3 +177,33 @@ class TestLayout:
     def test_exclude_regex(self, layout):
         assert os.path.join(
             layout.root, 'derivatives/excluded.json') not in layout.files
+
+class TestHDFSLayout:
+
+    def test_init(self, layout):
+        client = Config().get_client()
+        assert client.list(layout.root)
+        assert isinstance(layout.files, dict)
+        assert isinstance(layout.entities, dict)
+        assert isinstance(layout.mandatory, set)
+        assert not layout.dynamic_getters
+
+    def test_absolute_paths(self, layout):
+        result = layout.get(subject=1, run=1, session=1)
+        assert result  # that we got some entries
+        assert all([os.path.isabs(f.filename) for f in result])
+
+        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        root = os.path.relpath(root)
+        config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+
+        layout = Layout(root, config, absolute_paths=False)
+
+        result = layout.get(subject=1, run=1, session=1)
+        assert result
+        assert not any([os.path.isabs(f.filename) for f in result])
+
+        layout = Layout(root, config, absolute_paths=True)
+        result = layout.get(subject=1, run=1, session=1)
+        assert result
+        assert all([os.path.isabs(f.filename) for f in result])
