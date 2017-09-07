@@ -174,7 +174,7 @@ class Layout(object):
             if self.inclusion_regex.get('include') and \
                 self.inclusion_regex.get('exclude'):
                     raise ValueError("You can only define either include or "
-                                     " exclude regex, not both.")
+                                     "exclude regex, not both.")
         self.index()
 
     def _check_inclusions(self, f):

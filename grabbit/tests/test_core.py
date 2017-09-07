@@ -29,7 +29,7 @@ def layout2():
 def layout_override():
     root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
     config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
-    return Layout(root, config, config_update = {'index': None}, regex_search=True)
+    return Layout(root, config, regex_search=True, index={})
 
 class TestFile:
 
@@ -190,6 +190,6 @@ class TestLayout:
             layout.root, 'derivatives/excluded.json') not in layout.files
         assert os.path.join(
             layout_override.root, 'derivatives/excluded.json') \
-            not in layout_override.files
+            in layout_override.files
         assert os.path.join(
             layout2.root, 'models/excluded_model.json') not in layout2.files
