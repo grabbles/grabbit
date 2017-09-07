@@ -123,7 +123,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, exclude_dir=None):
+                 absolute_paths=True, regex_search=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -145,8 +145,6 @@ class Layout(object):
                 string to each entity in .get() calls. This sets a default for
                 the instance, but can be overridden in individual .get()
                 requests.
-            exclude_dir (str): Regex by which to exclude directories (and their
-                children) from indexing.
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -155,7 +153,7 @@ class Layout(object):
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
-        self.exclude_dir = exclude_dir
+        self.filtering_regex = {}
 
         if config is not None:
             self._load_config(config)
@@ -167,16 +165,50 @@ class Layout(object):
         for e in config['entities']:
             self.add_entity(**e)
 
+        if 'index' in config:
+            self.filtering_regex = config['index']
+            if self.filtering_regex.get('include') and \
+                self.filtering_regex.get('exclude'):
+                    raise ValueError("You can only define either include or "
+                                     "exclude regex, not both.")
         self.index()
 
+    def _check_inclusions(self, f):
+        ''' Check if file or directory against regexes in config to determine if
+            it should be included in the index '''
+        filename = f if isinstance(f, str) else f.path
+
+        # If file matches any include regex, then true
+        include_regex = self.filtering_regex.get('include', [])
+        if include_regex:
+            for regex in include_regex:
+                if re.match(regex, filename):
+                    break
+            else:
+                return False
+        else:
+            # If file matches any excldue regex, then false
+            for regex in self.filtering_regex.get('exclude', []):
+                if re.match(regex ,filename):
+                    return False
+
+        return True
+
+    def _validate_dir(self, d):
+        ''' Extend this in subclasses to provide additional directory validation.
+        Will be called the first time a directory is read in; if False is
+        returned, the directory will be ignored and dropped from the layout. '''
+
+        return self._validate_file(d)
+
     def _validate_file(self, f):
-        ''' Override this in subclasses to provide additional file validation.
+        ''' Extend this in subclasses to provide additional file validation.
         Will be called the first time each file is read in; if False is
         returned, the file will be ignored and dropped from the layout. '''
+
         return True
 
     def index(self):
-
         # Reset indexes
         self.files = {}
         for ent in self.entities.values():
@@ -184,14 +216,14 @@ class Layout(object):
 
         # Loop over all files
         for root, directories, filenames in os.walk(self.root, topdown=True):
-
-            # Exclude directories from further search if they match exclude regex
-            if self.exclude_dir is not None:
-                directories[:] = [d for d in directories if not re.match(self.exclude_dir, d)]
-
+            # Only loop further over directories that pass regex (on full path)
+            full_dirs = [os.path.join(root, d) for d in directories]
+            full_dirs = filter(self._check_inclusions, full_dirs)
+            directories[:] = [os.path.split(d)[1] for d in \
+                              filter(self._validate_dir, full_dirs)]
             for f in filenames:
                 f = File(join(root, f))
-                if not self._validate_file(f):
+                if not (self._check_inclusions(f) and self._validate_file(f)):
                     continue
                 for e in self.entities.values():
                     e.matches(f)

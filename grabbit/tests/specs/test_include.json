@@ -1,6 +1,6 @@
 {
   "index" : {
-    "exclude" : [".*derivatives.*"]
+    "include" : ["sub-(\\d+)", "ses-.*", "func", "fmap", ".*\\..*"]
   },
   "entities": [
     {
