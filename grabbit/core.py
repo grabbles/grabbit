@@ -123,7 +123,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, **kwargs):
+                 absolute_paths=True, regex_search=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -153,26 +153,22 @@ class Layout(object):
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
-        self.index_regex = None
+        self.filtering_regex = None
 
         if config is not None:
-            self._load_config(config, **kwargs)
+            self._load_config(config)
 
-    def _load_config(self, config, **kwargs):
+    def _load_config(self, config):
         if isinstance(config, six.string_types):
             config = json.load(open(config, 'r'))
-
-        for k, v in kwargs.items():
-            if k in config:
-                config[k] = v
 
         for e in config['entities']:
             self.add_entity(**e)
 
         if 'index' in config:
-            self.inclusion_regex = config['index']
-            if self.inclusion_regex.get('include') and \
-                self.inclusion_regex.get('exclude'):
+            self.filtering_regex = config['index']
+            if self.filtering_regex.get('include') and \
+                self.filtering_regex.get('exclude'):
                     raise ValueError("You can only define either include or "
                                      "exclude regex, not both.")
         self.index()
@@ -180,21 +176,21 @@ class Layout(object):
     def _check_inclusions(self, f):
         ''' Check if file or directory against regexes in config to determine if
             it should be included in the index '''
-        filename = f if isinstance(f, str) else f.filename
+        filename = f if isinstance(f, str) else f.path
 
         # If file matches any include regex, then true
-        include_regex = self.inclusion_regex.get('include', [])
+        include_regex = self.filtering_regex.get('include', [])
         if include_regex:
             for regex in include_regex:
                 if re.match(regex, filename):
                     break
             else:
                 return False
-
-        # If file matches any excldue regex, then false
-        for regex in self.inclusion_regex.get('exclude', []):
-            if re.match(regex ,filename):
-                return False
+        else:
+            # If file matches any excldue regex, then false
+            for regex in self.filtering_regex.get('exclude', []):
+                if re.match(regex ,filename):
+                    return False
 
         return True
 
@@ -203,7 +199,7 @@ class Layout(object):
         Will be called the first time a directory is read in; if False is
         returned, the directory will be ignored and dropped from the layout. '''
 
-        return True
+        return self._validate_file(d)
 
     def _validate_file(self, f):
         ''' Extend this in subclasses to provide additional file validation.
@@ -227,7 +223,7 @@ class Layout(object):
                               filter(self._validate_dir, full_dirs)]
             for f in filenames:
                 f = File(join(root, f))
-                if not (self._check_inclusions(f) or self._validate_file(f)):
+                if not self._check_inclusions(f) and self._validate_file(f):
                     continue
                 for e in self.entities.values():
                     e.matches(f)

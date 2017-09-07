@@ -1,7 +1,7 @@
 import pytest
 from grabbit import File, Entity, Layout
 import os
-
+import json
 
 @pytest.fixture
 def file(tmpdir):
@@ -24,12 +24,6 @@ def layout2():
     root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
     config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
     return Layout(root, config, regex_search=True)
-
-@pytest.fixture(scope='module')
-def layout_override():
-    root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
-    config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
-    return Layout(root, config, regex_search=True, index={})
 
 class TestFile:
 
@@ -185,11 +179,13 @@ class TestLayout:
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
 
-    def test_index_regex(self, layout, layout2, layout_override):
+    def test_index_regex(self, layout, layout2):
         assert os.path.join(
             layout.root, 'derivatives/excluded.json') not in layout.files
         assert os.path.join(
-            layout_override.root, 'derivatives/excluded.json') \
-            in layout_override.files
-        assert os.path.join(
             layout2.root, 'models/excluded_model.json') not in layout2.files
+
+        with pytest.raises(ValueError):
+            layout2._load_config({'entities' : [],
+                                  'index' : {'include' : 'test',
+                                             'exclude' : 'test'}})
