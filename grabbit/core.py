@@ -223,7 +223,7 @@ class Layout(object):
                               filter(self._validate_dir, full_dirs)]
             for f in filenames:
                 f = File(join(root, f))
-                if self._check_inclusions(f) or self._validate_file(f):
+                if not (self._check_inclusions(f) and self._validate_file(f)):
                     continue
                 for e in self.entities.values():
                     e.matches(f)
