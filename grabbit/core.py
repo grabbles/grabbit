@@ -147,22 +147,32 @@ class Layout(object):
             exclude_dir (str): Regex by which to exclude directories (and their
                 children) from indexing.
         """
+        if 'hdfs://' in path:
+            from hdfs import Config
+            self._hdfs_client = Config().get_client()
+        else:
+            self._hdfs_client = None        
 
-        self.root = abspath(path) if absolute_paths or 'hdfs://' not in path else path
+        self.root = abspath(path) if absolute_paths and self._hdfs_client is None else path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
         self.exclude_dir = exclude_dir
-        
+
 
         if config is not None:
             self._load_config(config)
 
     def _load_config(self, config):
         if isinstance(config, six.string_types):
-            config = json.load(open(config, 'r'))
+            if self._hdfs_client is not None:
+                hdfs_path = '/'.join(config.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
+                with self._hdfs_client.read(hdfs_path) as reader:
+                    config = json.load(reader)
+            else:
+                config = json.load(open(config, 'r'))
 
         for e in config['entities']:
             self.add_entity(**e)
@@ -184,22 +194,12 @@ class Layout(object):
 
         dataset = None
 
-        in_hdfs = False
-
         # If HDFS URL is not provided, will look for file in local FS
-        if 'hdfs://' in self.root:
-
-            in_hdfs = True
-
-            from hdfs import Config
-            import posixpath as psp
-
-            client = Config().get_client()
+        if self._hdfs_client:
 
             # Format URL such that it's now relative to root
-            self.root = '/'.join(self.root.strip('hdfs://').split('/')[1:]).strip(client.root)
-
-            dataset = client.walk(self.root)
+            self.root = '/'.join(self.root.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
+            dataset = self._hdfs_client.walk(self.root)
 
         else:
             dataset = os.walk(self.root, topdown=True)            
@@ -211,9 +211,10 @@ class Layout(object):
             if self.exclude_dir is not None:
                 directories[:] = [d for d in directories if not re.match(self.exclude_dir, d)]
             for f in filenames:
-                if in_hdfs:
+                if self._hdfs_client is not None:
+                    import posixpath as psp
                     filepath = psp.join(root, f)
-                    with client.read(filepath) as reader:
+                    with self._hdfs_client.read(filepath) as reader:
                         f = File(reader.read())
                         f.path = filepath
                 else:
