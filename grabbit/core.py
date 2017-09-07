@@ -153,7 +153,7 @@ class Layout(object):
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
-        self.filtering_regex = None
+        self.filtering_regex = {}
 
         if config is not None:
             self._load_config(config)
