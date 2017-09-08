@@ -2,7 +2,7 @@ import pytest
 from grabbit import File, Entity, Layout
 import os
 import posixpath as psp
-
+import json
 
 @pytest.fixture
 def file(tmpdir):
@@ -25,7 +25,19 @@ def layout(request):
         root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
         config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test.json')
 
-    return Layout(root, config, regex_search=True, exclude_dir='derivatives')
+    return Layout(root, config, regex_search=True)
+
+@pytest.fixture(scope='module', params=['local', 'hdfs'])
+def layout2(request):
+    if request.param == 'local':
+        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
+    else:
+        hdfs = pytest.importorskip("hdfs")
+        client = hdfs.Config().get_client()
+        root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
+        config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test_include.json')
+    return Layout(root, config, regex_search=True)
 
 class TestFile:
 
@@ -219,6 +231,13 @@ class TestLayout:
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
 
-    def test_exclude_regex(self, layout):
+    def test_index_regex(self, layout, layout2):
         assert os.path.join(
             layout.root, 'derivatives/excluded.json') not in layout.files
+        assert os.path.join(
+            layout2.root, 'models/excluded_model.json') not in layout2.files
+
+        with pytest.raises(ValueError):
+            layout2._load_config({'entities' : [],
+                                  'index' : {'include' : 'test',
+                                             'exclude' : 'test'}})

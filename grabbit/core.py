@@ -6,6 +6,7 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
+import six
 
 __all__ = ['File', 'Entity', 'Layout']
 
@@ -122,7 +123,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, exclude_dir=None):
+                 absolute_paths=True, regex_search=False):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -144,8 +145,6 @@ class Layout(object):
                 string to each entity in .get() calls. This sets a default for
                 the instance, but can be overridden in individual .get()
                 requests.
-            exclude_dir (str): Regex by which to exclude directories (and their
-                children) from indexing.
         """
         if 'hdfs://' in path:
             from hdfs import Config
@@ -159,7 +158,7 @@ class Layout(object):
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
-        self.exclude_dir = exclude_dir
+        self.filtering_regex = {}
 
 
         if config is not None:
@@ -168,8 +167,8 @@ class Layout(object):
     def _load_config(self, config):
         if isinstance(config, six.string_types):
             if self._hdfs_client is not None:
-                hdfs_path = '/'.join(config.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
-                with self._hdfs_client.read(hdfs_path) as reader:
+                config = '/'.join(config.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
+                with self._hdfs_client.read(config) as reader:
                     config = json.load(reader)
             else:
                 config = json.load(open(config, 'r'))
@@ -177,23 +176,57 @@ class Layout(object):
         for e in config['entities']:
             self.add_entity(**e)
 
+        if 'index' in config:
+            self.filtering_regex = config['index']
+            if self.filtering_regex.get('include') and \
+                self.filtering_regex.get('exclude'):
+                    raise ValueError("You can only define either include or "
+                                     "exclude regex, not both.")
         self.index()
 
+    def _check_inclusions(self, f):
+        ''' Check if file or directory against regexes in config to determine if
+            it should be included in the index '''
+        filename = f if isinstance(f, six.string_types) else f.path
+        
+        # If file matches any include regex, then true
+        include_regex = self.filtering_regex.get('include', [])
+        if include_regex:
+            for regex in include_regex:
+                if re.match(regex, filename):
+                    break
+            else:
+                return False
+        else:
+            # If file matches any excldue regex, then false
+            for regex in self.filtering_regex.get('exclude', []):
+                if re.match(regex, filename, flags=re.UNICODE):
+                    return False
+
+        return True
+
+    def _validate_dir(self, d):
+        ''' Extend this in subclasses to provide additional directory validation.
+        Will be called the first time a directory is read in; if False is
+        returned, the directory will be ignored and dropped from the layout. '''
+
+        return self._validate_file(d)
+
     def _validate_file(self, f):
-        ''' Override this in subclasses to provide additional file validation.
+        ''' Extend this in subclasses to provide additional file validation.
         Will be called the first time each file is read in; if False is
         returned, the file will be ignored and dropped from the layout. '''
+
         return True
 
     def index(self):
-
         # Reset indexes
         self.files = {}
         for ent in self.entities.values():
             ent.files = {}
 
         dataset = None
-
+        #psp = None
         # If HDFS URL is not provided, will look for file in local FS
         if self._hdfs_client:
 
@@ -208,17 +241,20 @@ class Layout(object):
         # Loop over all files
         for root, directories, filenames in dataset:
             # Exclude directories from further search if they match exclude regex
-            if self.exclude_dir is not None:
-                directories[:] = [d for d in directories if not re.match(self.exclude_dir, d)]
+            full_dirs = [os.path.join(root, d) for d in directories]
+            full_dirs = filter(self._check_inclusions, full_dirs)
+            directories[:] = [os.path.split(d)[1] for d in \
+                        filter(self._validate_dir, full_dirs)]
             for f in filenames:
                 if self._hdfs_client is not None:
                     import posixpath as psp
-                    filepath = psp.join(root, f)
+                    filepath = str(psp.join(root, f))
+     
                     with self._hdfs_client.read(filepath) as reader:
                         f = File(filepath)
                 else:
                     f = File(join(root, f))
-                if not self._validate_file(f):
+                if not (self._check_inclusions(f) and self._validate_file(f)):
                     continue
                 for e in self.entities.values():
                     e.matches(f)
@@ -232,7 +268,7 @@ class Layout(object):
                         self.entities[ent].add_file(f.path, val)
 
     def add_entity(self, **kwargs):
-                # Set up the entities we need to track
+            # Set up the entities we need to track
             ent = Entity(**kwargs)
             if ent.mandatory:
                 self.mandatory.add(ent.name)
