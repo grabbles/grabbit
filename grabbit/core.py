@@ -6,7 +6,7 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
-
+import six
 
 __all__ = ['File', 'Entity', 'Layout']
 
@@ -146,8 +146,13 @@ class Layout(object):
                 the instance, but can be overridden in individual .get()
                 requests.
         """
+        if 'hdfs://' in path:
+            from hdfs import Config
+            self._hdfs_client = Config().get_client()
+        else:
+            self._hdfs_client = None        
 
-        self.root = abspath(path) if absolute_paths else path
+        self.root = abspath(path) if absolute_paths and self._hdfs_client is None else path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
@@ -155,12 +160,18 @@ class Layout(object):
         self.regex_search = regex_search
         self.filtering_regex = {}
 
+
         if config is not None:
             self._load_config(config)
 
     def _load_config(self, config):
         if isinstance(config, six.string_types):
-            config = json.load(open(config, 'r'))
+            if self._hdfs_client is not None:
+                config = '/'.join(config.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
+                with self._hdfs_client.read(config) as reader:
+                    config = json.load(reader)
+            else:
+                config = json.load(open(config, 'r'))
 
         for e in config['entities']:
             self.add_entity(**e)
@@ -176,8 +187,8 @@ class Layout(object):
     def _check_inclusions(self, f):
         ''' Check if file or directory against regexes in config to determine if
             it should be included in the index '''
-        filename = f if isinstance(f, str) else f.path
-
+        filename = f if isinstance(f, six.string_types) else f.path
+        
         # If file matches any include regex, then true
         include_regex = self.filtering_regex.get('include', [])
         if include_regex:
@@ -189,7 +200,7 @@ class Layout(object):
         else:
             # If file matches any excldue regex, then false
             for regex in self.filtering_regex.get('exclude', []):
-                if re.match(regex ,filename):
+                if re.match(regex, filename, flags=re.UNICODE):
                     return False
 
         return True
@@ -214,15 +225,35 @@ class Layout(object):
         for ent in self.entities.values():
             ent.files = {}
 
+        dataset = None
+        #psp = None
+        # If HDFS URL is not provided, will look for file in local FS
+        if self._hdfs_client:
+
+            # Format URL such that it's now relative to root
+            self.root = '/'.join(self.root.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
+            dataset = self._hdfs_client.walk(self.root)
+
+        else:
+            dataset = os.walk(self.root, topdown=True)            
+
+
         # Loop over all files
-        for root, directories, filenames in os.walk(self.root, topdown=True):
-            # Only loop further over directories that pass regex (on full path)
+        for root, directories, filenames in dataset:
+            # Exclude directories from further search if they match exclude regex
             full_dirs = [os.path.join(root, d) for d in directories]
             full_dirs = filter(self._check_inclusions, full_dirs)
             directories[:] = [os.path.split(d)[1] for d in \
-                              filter(self._validate_dir, full_dirs)]
+                        filter(self._validate_dir, full_dirs)]
             for f in filenames:
-                f = File(join(root, f))
+                if self._hdfs_client is not None:
+                    import posixpath as psp
+                    filepath = str(psp.join(root, f))
+     
+                    with self._hdfs_client.read(filepath) as reader:
+                        f = File(filepath)
+                else:
+                    f = File(join(root, f))
                 if not (self._check_inclusions(f) and self._validate_file(f)):
                     continue
                 for e in self.entities.values():
@@ -237,7 +268,7 @@ class Layout(object):
                         self.entities[ent].add_file(f.path, val)
 
     def add_entity(self, **kwargs):
-                # Set up the entities we need to track
+            # Set up the entities we need to track
             ent = Entity(**kwargs)
             if ent.mandatory:
                 self.mandatory.add(ent.name)
@@ -411,7 +442,6 @@ class Layout(object):
         for filename in results:
             f = self.files[filename]
             folders[f.dirname].append(f)
-
         def count_matches(f):
             keys = set(entities.keys()) & set(f.entities.keys())
             shared = len(keys)

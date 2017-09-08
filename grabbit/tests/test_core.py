@@ -1,6 +1,7 @@
 import pytest
 from grabbit import File, Entity, Layout
 import os
+import posixpath as psp
 import json
 
 @pytest.fixture
@@ -10,19 +11,32 @@ def file(tmpdir):
     fn.write('###')
     return File(os.path.join(str(fn)))
 
-@pytest.fixture(scope='module')
-def layout():
-    root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
-    # note about test.json:
-    #  in this test.json 'subject' regex was left to contain possible leading 0
-    #  the other fields (run, session) has leading 0 stripped
-    config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+@pytest.fixture(scope='module', params=['local', 'hdfs'])
+def layout(request):
+    if request.param == 'local':
+        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        # note about test.json:
+        #  in this test.json 'subject' regex was left to contain possible leading 0
+        #  the other fields (run, session) has leading 0 stripped
+        config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+    else:
+        hdfs = pytest.importorskip("hdfs")
+        client = hdfs.Config().get_client()
+        root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
+        config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test.json')
+
     return Layout(root, config, regex_search=True)
 
-@pytest.fixture(scope='module')
-def layout2():
-    root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
-    config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
+@pytest.fixture(scope='module', params=['local', 'hdfs'])
+def layout2(request):
+    if request.param == 'local':
+        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
+    else:
+        hdfs = pytest.importorskip("hdfs")
+        client = hdfs.Config().get_client()
+        root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
+        config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test_include.json')
     return Layout(root, config, regex_search=True)
 
 class TestFile:
@@ -94,7 +108,10 @@ class TestEntity:
 class TestLayout:
 
     def test_init(self, layout):
-        assert os.path.exists(layout.root)
+        if layout._hdfs_client is None:
+            assert os.path.exists(layout.root)
+        else:
+            assert layout._hdfs_client.list(layout.root)
         assert isinstance(layout.files, dict)
         assert isinstance(layout.entities, dict)
         assert isinstance(layout.mandatory, set)
@@ -105,24 +122,50 @@ class TestLayout:
         assert result  # that we got some entries
         assert all([os.path.isabs(f.filename) for f in result])
 
-        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
-        root = os.path.relpath(root)
-        config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+        if layout._hdfs_client is None:
+            root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+            root = os.path.relpath(root)
+            config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
 
-        layout = Layout(root, config, absolute_paths=False)
+            layout = Layout(root, config, absolute_paths=False)
 
-        result = layout.get(subject=1, run=1, session=1)
-        assert result
-        assert not any([os.path.isabs(f.filename) for f in result])
+            result = layout.get(subject=1, run=1, session=1)
+            assert result
+            assert not any([os.path.isabs(f.filename) for f in result])
 
-        layout = Layout(root, config, absolute_paths=True)
-        result = layout.get(subject=1, run=1, session=1)
-        assert result
-        assert all([os.path.isabs(f.filename) for f in result])
+            layout = Layout(root, config, absolute_paths=True)
+            result = layout.get(subject=1, run=1, session=1)
+            assert result
+            assert all([os.path.isabs(f.filename) for f in result])
 
-    def test_dynamic_getters(self):
-        data_dir = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
-        config = os.path.join(os.path.dirname(__file__), 'specs', 'test.json')
+        # Should always be absolute paths on HDFS
+        else:
+            root = psp.join('hdfs://localhost:9000{0}'.format(layout._hdfs_client.root), 'data', '7t_trt')
+            config = psp.join('hdfs://localhost:9000{0}'.format(layout._hdfs_client.root), 'specs', 'test.json') 
+
+            layout = Layout(root, config, absolute_paths=False)
+
+            result = layout.get(subject=1, run=1, session=1)
+            assert result
+            assert all([os.path.isabs(f.filename) for f in result])
+
+            layout = Layout(root, config, absolute_paths=True)
+            result = layout.get(subject=1, run=1, session=1)
+            assert result
+            assert all([os.path.isabs(f.filename) for f in result])
+
+    
+    @pytest.mark.parametrize('data_dir, config', 
+                                [(os.path.join(os.path.dirname(__file__), 'data', '7t_trt'), 
+                                 os.path.join(os.path.dirname(__file__), 'specs', 'test.json')), 
+                                (psp.join('hdfs://localhost:9000/grabbit/test/', 'data', '7t_trt'), 
+                                psp.join('hdfs://localhost:9000/grabbit/test/', 'specs', 'test.json'))])
+    def test_dynamic_getters(self, data_dir, config):
+        
+         
+        if ('hdfs' in data_dir or 'hdfs' in config):
+            pytest.importorskip('hdfs')
+            
         layout = Layout(data_dir, config, dynamic_getters=True)
         assert hasattr(layout, 'get_subjects')
         assert '01' in getattr(layout, 'get_subjects')()
@@ -148,10 +191,19 @@ class TestLayout:
         assert len(result) == 10
         assert '03' in result
         result = layout.get(target='subject', return_type='dir')
-        assert os.path.exists(result[0])
-        assert os.path.isdir(result[0])
+
+        if layout._hdfs_client is None:
+            assert os.path.exists(result[0])
+            assert os.path.isdir(result[0])
+        else:
+            assert layout._hdfs_client.list(layout.root)
+
         result = layout.get(target='subject', type='phasediff', return_type='file')
-        assert all([os.path.exists(f) for f in result])
+        
+        if layout._hdfs_client is None:
+            assert all([os.path.exists(f) for f in result])
+        else:
+            assert all([layout._hdfs_client.content(f) for f in result])
 
     def test_natsort(self, layout):
         result = layout.get(target='subject', return_type='id')
