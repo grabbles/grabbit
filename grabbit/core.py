@@ -8,6 +8,7 @@ from os.path import join, basename, dirname, abspath, split
 from functools import partial
 import six
 
+
 __all__ = ['File', 'Entity', 'Layout']
 
 
@@ -27,12 +28,11 @@ class File(object):
         Checks whether the file matches all of the passed entities and
         extensions.
         Args:
-            entities (dict): A dictionary of entity names -> regex
-                patterns.
+            entities (dict): A dictionary of entity names -> regex patterns.
             extensions (str, list): One or more file extensions to allow.
             regex_search (bool): Whether to require exact match (False) or
-                regex
-                search (True) when comparing the query string to each entity.
+                regex search (True) when comparing the query string to each
+                entity.
         Returns:
             True if _all_ entities and extensions match; False otherwise.
         """
@@ -128,8 +128,8 @@ class Layout(object):
         A container for all the files and metadata found at the specified path.
         Args:
             path (str): The root path of the layout.
-            config (str): The path to the JSON config file
-                that defines the entities and paths for the current layout.
+            config (str): The path to the JSON config file that defines the
+            entities and paths for the current layout.
             dynamic_getters (bool): If True, a get_{entity_name}() method will
                 be dynamically added to the Layout every time a new Entity is
                 created. This is implemented by creating a partial function of
@@ -146,13 +146,8 @@ class Layout(object):
                 the instance, but can be overridden in individual .get()
                 requests.
         """
-        if 'hdfs://' in path:
-            from hdfs import Config
-            self._hdfs_client = Config().get_client()
-        else:
-            self._hdfs_client = None        
 
-        self.root = abspath(path) if absolute_paths and self._hdfs_client is None else path
+        self.root = abspath(path) if absolute_paths else path
         self.entities = OrderedDict()
         self.files = {}
         self.mandatory = set()
@@ -160,18 +155,12 @@ class Layout(object):
         self.regex_search = regex_search
         self.filtering_regex = {}
 
-
         if config is not None:
             self._load_config(config)
 
     def _load_config(self, config):
         if isinstance(config, six.string_types):
-            if self._hdfs_client is not None:
-                config = '/'.join(config.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
-                with self._hdfs_client.read(config) as reader:
-                    config = json.load(reader)
-            else:
-                config = json.load(open(config, 'r'))
+            config = json.load(open(config, 'r'))
 
         for e in config['entities']:
             self.add_entity(**e)
@@ -188,7 +177,7 @@ class Layout(object):
         ''' Check if file or directory against regexes in config to determine if
             it should be included in the index '''
         filename = f if isinstance(f, six.string_types) else f.path
-        
+
         # If file matches any include regex, then true
         include_regex = self.filtering_regex.get('include', [])
         if include_regex:
@@ -219,46 +208,43 @@ class Layout(object):
 
         return True
 
+    def _get_files(self):
+        ''' Returns all files in project (pre-filtering). Extend this in
+        subclasses as needed. '''
+        return os.walk(self.root, topdown=True)
+
+    def _make_file_object(self, root, f):
+        return File(join(root, f))
+
     def index(self):
         # Reset indexes
         self.files = {}
         for ent in self.entities.values():
             ent.files = {}
 
-        dataset = None
-        #psp = None
-        # If HDFS URL is not provided, will look for file in local FS
-        if self._hdfs_client:
-
-            # Format URL such that it's now relative to root
-            self.root = '/'.join(self.root.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
-            dataset = self._hdfs_client.walk(self.root)
-
-        else:
-            dataset = os.walk(self.root, topdown=True)            
-
+        dataset = self._get_files()
 
         # Loop over all files
         for root, directories, filenames in dataset:
-            # Exclude directories from further search if they match exclude regex
+
+            # Exclude directories that match exclude regex from further search
             full_dirs = [os.path.join(root, d) for d in directories]
             full_dirs = filter(self._check_inclusions, full_dirs)
             directories[:] = [os.path.split(d)[1] for d in \
                         filter(self._validate_dir, full_dirs)]
+
             for f in filenames:
-                if self._hdfs_client is not None:
-                    import posixpath as psp
-                    filepath = str(psp.join(root, f))
-     
-                    with self._hdfs_client.read(filepath) as reader:
-                        f = File(filepath)
-                else:
-                    f = File(join(root, f))
+
+                f = self._make_file_object(root, f)
+
                 if not (self._check_inclusions(f) and self._validate_file(f)):
                     continue
+
                 for e in self.entities.values():
                     e.matches(f)
+
                 fe = f.entities.keys()
+
                 # Only keep Files that match at least one Entity, and all
                 # mandatory Entities
                 if fe and not (self.mandatory - set(fe)):
