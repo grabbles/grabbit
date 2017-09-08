@@ -215,8 +215,7 @@ class Layout(object):
                     import posixpath as psp
                     filepath = psp.join(root, f)
                     with self._hdfs_client.read(filepath) as reader:
-                        f = File(reader.read())
-                        f.path = filepath
+                        f = File(filepath)
                 else:
                     f = File(join(root, f))
                 if not self._validate_file(f):
@@ -407,7 +406,6 @@ class Layout(object):
         for filename in results:
             f = self.files[filename]
             folders[f.dirname].append(f)
-
         def count_matches(f):
             keys = set(entities.keys()) & set(f.entities.keys())
             shared = len(keys)
