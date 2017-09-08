@@ -149,11 +149,12 @@ class TestLayout:
                                 (psp.join('hdfs://localhost:9000/grabbit/test/', 'data', '7t_trt'), 
                                 psp.join('hdfs://localhost:9000/grabbit/test/', 'specs', 'test.json'))])
     def test_dynamic_getters(self, data_dir, config):
-        layout = Layout(data_dir, config, dynamic_getters=True)
         
-        if ('hdfs' in data_dir or 'hdfs' in config) and layout._hdfs_client is None:
-            pytest.skip("HDFS not configured")
+         
+        if ('hdfs' in data_dir or 'hdfs' in config):
+            pytest.importorskip('hdfs')
             
+        layout = Layout(data_dir, config, dynamic_getters=True)
         assert hasattr(layout, 'get_subjects')
         assert '01' in getattr(layout, 'get_subjects')()
 
