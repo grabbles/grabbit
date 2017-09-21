@@ -6,7 +6,6 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
-import six
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -61,7 +60,8 @@ class File(object):
         Returns the File as a named tuple. The full path plus all entity
         key/value pairs are returned as attributes.
         """
-        _File = namedtuple('File', 'filename ' + ' '.join(self.entities.keys()))
+        _File = namedtuple('File', 'filename ' +
+                           ' '.join(self.entities.keys()))
         return _File(filename=self.path, **self.entities)
 
 
@@ -168,17 +168,17 @@ class Layout(object):
         if 'index' in config:
             self.filtering_regex = config['index']
             if self.filtering_regex.get('include') and \
-                self.filtering_regex.get('exclude'):
-                    raise ValueError("You can only define either include or "
-                                     "exclude regex, not both.")
+               self.filtering_regex.get('exclude'):
+                raise ValueError("You can only define either include or "
+                                 "exclude regex, not both.")
         self.index()
 
     def _check_inclusions(self, f):
-        ''' Check if file or directory against regexes in config to determine if
+        ''' Check file or directory against regexes in config to determine if
             it should be included in the index '''
         filename = f if isinstance(f, six.string_types) else f.path
 
-        # If file matches any include regex, then true
+        # If file matches any include regex, then True
         include_regex = self.filtering_regex.get('include', [])
         if include_regex:
             for regex in include_regex:
@@ -197,7 +197,8 @@ class Layout(object):
     def _validate_dir(self, d):
         ''' Extend this in subclasses to provide additional directory validation.
         Will be called the first time a directory is read in; if False is
-        returned, the directory will be ignored and dropped from the layout. '''
+        returned, the directory will be ignored and dropped from the layout.
+        '''
 
         return self._validate_file(d)
 
@@ -230,8 +231,8 @@ class Layout(object):
             # Exclude directories that match exclude regex from further search
             full_dirs = [os.path.join(root, d) for d in directories]
             full_dirs = filter(self._check_inclusions, full_dirs)
-            directories[:] = [os.path.split(d)[1] for d in \
-                        filter(self._validate_dir, full_dirs)]
+            directories[:] = [os.path.split(d)[1] for d in
+                              filter(self._validate_dir, full_dirs)]
 
             for f in filenames:
 
@@ -255,17 +256,17 @@ class Layout(object):
 
     def add_entity(self, **kwargs):
             # Set up the entities we need to track
-            ent = Entity(**kwargs)
-            if ent.mandatory:
-                self.mandatory.add(ent.name)
-            if ent.directory is not None:
-                ent.directory = ent.directory.replace('{{root}}', self.root)
-            self.entities[ent.name] = ent
-            if self.dynamic_getters:
-                func = partial(getattr(self, 'get'), target=ent.name,
-                               return_type='id')
-                func_name = inflect.engine().plural(ent.name)
-                setattr(self, 'get_%s' % func_name, func)
+        ent = Entity(**kwargs)
+        if ent.mandatory:
+            self.mandatory.add(ent.name)
+        if ent.directory is not None:
+            ent.directory = ent.directory.replace('{{root}}', self.root)
+        self.entities[ent.name] = ent
+        if self.dynamic_getters:
+            func = partial(getattr(self, 'get'), target=ent.name,
+                           return_type='id')
+            func_name = inflect.engine().plural(ent.name)
+            setattr(self, 'get_%s' % func_name, func)
 
     def get(self, return_type='tuple', target=None, extensions=None,
             regex_search=None, **kwargs):
@@ -335,7 +336,7 @@ class Layout(object):
                     patt = self.entities[ent].pattern
                     template = template.replace('{%s}' % ent, patt)
                 template += '[^\%s]*$' % os.path.sep
-                matches = [f.dirname for f in self.files.values() \
+                matches = [f.dirname for f in self.files.values()
                            if re.search(template, f.dirname)]
                 return natural_sort(list(set(matches)))
 
@@ -428,6 +429,7 @@ class Layout(object):
         for filename in results:
             f = self.files[filename]
             folders[f.dirname].append(f)
+
         def count_matches(f):
             keys = set(entities.keys()) & set(f.entities.keys())
             shared = len(keys)
@@ -457,7 +459,7 @@ class Layout(object):
                 if _path == path:
                     break
                 path = _path
-            except:
+            except Exception:
                 break
 
         matches = [m.path if return_type == 'file' else m.as_named_tuple()

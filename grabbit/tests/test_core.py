@@ -2,7 +2,6 @@ import pytest
 from grabbit import File, Entity, Layout
 import os
 import posixpath as psp
-import json
 
 
 @pytest.fixture
@@ -11,6 +10,7 @@ def file(tmpdir):
     fn = tmpdir.mkdir("tmp").join(testfile)
     fn.write('###')
     return File(os.path.join(str(fn)))
+
 
 @pytest.fixture(scope='module', params=['local', 'hdfs'])
 def layout(request):
@@ -29,19 +29,13 @@ def layout(request):
         config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test.json')
         return HDFSLayout(root, config, regex_search=True)
 
-@pytest.fixture(scope='module', params=['local', 'hdfs'])
-def layout2(request):
-    if request.param == 'local':
-        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
-        config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
-        return Layout(root, config, regex_search=True)
-    else:
-        hdfs = pytest.importorskip("hdfs")
-        from grabbit.extensions import HDFSLayout
-        client = hdfs.Config().get_client()
-        root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
-        config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test_include.json')
-        return HDFSLayout(root, config, regex_search=True)
+
+@pytest.fixture(scope='module')
+def layout_include(request):
+    root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+    config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
+    return Layout(root, config, regex_search=True)
+
 
 class TestFile:
 
@@ -158,14 +152,12 @@ class TestLayout:
             assert result
             assert all([os.path.isabs(f.filename) for f in result])
 
-
     @pytest.mark.parametrize('data_dir, config',
                                 [(os.path.join(os.path.dirname(__file__), 'data', '7t_trt'),
                                  os.path.join(os.path.dirname(__file__), 'specs', 'test.json')),
                                 (psp.join('hdfs://localhost:9000/grabbit/test/', 'data', '7t_trt'),
                                 psp.join('hdfs://localhost:9000/grabbit/test/', 'specs', 'test.json'))])
     def test_dynamic_getters(self, data_dir, config):
-
 
         if ('hdfs' in data_dir or 'hdfs' in config):
             pytest.importorskip('hdfs')
@@ -202,7 +194,8 @@ class TestLayout:
             assert os.path.exists(result[0])
             assert os.path.isdir(result[0])
 
-        result = layout.get(target='subject', type='phasediff', return_type='file')
+        result = layout.get(target='subject', type='phasediff',
+                            return_type='file')
 
         if hasattr(layout, '_hdfs_client'):
             assert all([layout._hdfs_client.content(f) for f in result])
@@ -211,7 +204,7 @@ class TestLayout:
 
     def test_natsort(self, layout):
         result = layout.get(target='subject', return_type='id')
-        assert result[:5] == list(map("%02d".__mod__ , range(1, 6)))
+        assert result[:5] == list(map("%02d".__mod__, range(1, 6)))
 
     def test_unique_and_count(self, layout):
         result = layout.unique('subject')
@@ -235,13 +228,13 @@ class TestLayout:
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
 
-    def test_index_regex(self, layout, layout2):
-        assert os.path.join(
-            layout.root, 'derivatives/excluded.json') not in layout.files
-        assert os.path.join(
-            layout2.root, 'models/excluded_model.json') not in layout2.files
+    def test_index_regex(self, layout, layout_include):
+        targ = os.path.join(layout.root, 'derivatives/excluded.json')
+        assert targ not in layout.files
+        targ = os.path.join(layout_include.root, 'models/excluded_model.json')
+        assert targ not in layout_include.files
 
         with pytest.raises(ValueError):
-            layout2._load_config({'entities' : [],
-                                  'index' : {'include' : 'test',
-                                             'exclude' : 'test'}})
+            layout_include._load_config({'entities': [],
+                                         'index': {'include': 'test',
+                                                   'exclude': 'test'}})
