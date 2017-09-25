@@ -122,7 +122,7 @@ class Entity(object):
 
 class Layout(object):
 
-    def __init__(self, path, config=None, dynamic_getters=False,
+    def __init__(self, path, config=None, index=None, dynamic_getters=False,
                  absolute_paths=True, regex_search=False):
         """
         A container for all the files and metadata found at the specified path.
@@ -130,6 +130,10 @@ class Layout(object):
             path (str): The root path of the layout.
             config (str): The path to the JSON config file that defines the
             entities and paths for the current layout.
+            index (str): Optional path to a saved index file. If a valid value
+                is passed, this index is used to populate Files and Entities,
+                and the normal indexing process (which requires scanning all
+                files in the project) is skipped.
             dynamic_getters (bool): If True, a get_{entity_name}() method will
                 be dynamically added to the Layout every time a new Entity is
                 created. This is implemented by creating a partial function of
@@ -158,6 +162,11 @@ class Layout(object):
         if config is not None:
             self._load_config(config)
 
+        if index is None:
+            self.index()
+        else:
+            self.load_index(index)
+
     def _load_config(self, config):
         if isinstance(config, six.string_types):
             config = json.load(open(config, 'r'))
@@ -171,7 +180,6 @@ class Layout(object):
                self.filtering_regex.get('exclude'):
                 raise ValueError("You can only define either include or "
                                  "exclude regex, not both.")
-        self.index()
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if
@@ -195,18 +203,17 @@ class Layout(object):
         return True
 
     def _validate_dir(self, d):
-        ''' Extend this in subclasses to provide additional directory validation.
-        Will be called the first time a directory is read in; if False is
-        returned, the directory will be ignored and dropped from the layout.
+        ''' Extend this in subclasses to provide additional directory
+        validation. Will be called the first time a directory is read in; if
+        False is returned, the directory will be ignored and dropped from the
+        layout.
         '''
-
         return self._validate_file(d)
 
     def _validate_file(self, f):
         ''' Extend this in subclasses to provide additional file validation.
         Will be called the first time each file is read in; if False is
         returned, the file will be ignored and dropped from the layout. '''
-
         return True
 
     def _get_files(self):
@@ -215,13 +222,19 @@ class Layout(object):
         return os.walk(self.root, topdown=True)
 
     def _make_file_object(self, root, f):
+        ''' Initialize a new File oject from a directory and filename. Extend
+        in subclasses as needed. '''
         return File(join(root, f))
 
-    def index(self):
+    def _reset_index(self):
         # Reset indexes
         self.files = {}
         for ent in self.entities.values():
             ent.files = {}
+
+    def index(self):
+
+        self._reset_index()
 
         dataset = self._get_files()
 
@@ -253,6 +266,33 @@ class Layout(object):
                     # Bind the File to all of the matching entities
                     for ent, val in f.entities.items():
                         self.entities[ent].add_file(f.path, val)
+
+    def save_index(self, filename):
+        ''' Save the current Layout's index to a .json file.
+        Args:
+            filename (str): Filename to write to.
+        '''
+        data = { f.path: f.entities for f in self.files.values() }
+        with open(filename, 'w') as outfile:
+            json.dump(data, outfile)
+
+    def load_index(self, filename):
+        ''' Load the Layout's index from a plaintext file.
+        Args:
+            filename (str): Path to the plaintext index file.
+        '''
+        self._reset_index()
+        data = json.load(open(filename, 'r'))
+
+        for path, ents in data.items():
+
+            root, f = dirname(path), basename(path)
+            f = self._make_file_object(root, f)
+            f.entities = ents
+            self.files[f.path] = f
+
+            for ent, val in f.entities.items():
+                self.entities[ent].add_file(f.path, val)
 
     def add_entity(self, **kwargs):
             # Set up the entities we need to track

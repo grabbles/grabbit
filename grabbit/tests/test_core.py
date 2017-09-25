@@ -2,6 +2,8 @@ import pytest
 from grabbit import File, Entity, Layout
 import os
 import posixpath as psp
+import tempfile
+import json
 
 
 @pytest.fixture
@@ -218,7 +220,8 @@ class TestLayout:
                             extensions='.json', return_type='file')[0]
         nearest = layout.get_nearest(result, type='sessions', extensions='tsv',
                                      ignore_strict_entities=['type'])
-        assert '7t_trt/sub-01/sub-01_sessions.tsv' in nearest
+        target = os.path.join('7t_trt', 'sub-01', 'sub-01_sessions.tsv')
+        assert target in nearest
         nearest = layout.get_nearest(result, extensions='tsv', all_=True,
                                      ignore_strict_entities=['type'])
         assert len(nearest) == 3
@@ -229,12 +232,32 @@ class TestLayout:
         assert nearest[0].subject == '01'
 
     def test_index_regex(self, layout, layout_include):
-        targ = os.path.join(layout.root, 'derivatives/excluded.json')
+        targ = os.path.join(layout.root, 'derivatives', 'excluded.json')
         assert targ not in layout.files
-        targ = os.path.join(layout_include.root, 'models/excluded_model.json')
+        targ = os.path.join(layout_include.root, 'models',
+                            'excluded_model.json')
         assert targ not in layout_include.files
 
         with pytest.raises(ValueError):
             layout_include._load_config({'entities': [],
                                          'index': {'include': 'test',
                                                    'exclude': 'test'}})
+
+    def test_save_index(self, layout):
+        tmp = tempfile.mkstemp(suffix='.json')[1]
+        layout.save_index(tmp)
+        assert os.path.exists(tmp)
+        with open(tmp, 'r') as infile:
+            index = json.load(infile)
+        assert len(index) == len(layout.files)
+        # Check that entities for first 10 files match
+        for i in range(10):
+            f = list(layout.files.values())[i]
+            assert f.entities == index[f.path]
+        os.unlink(tmp)
+
+    def test_load_index(self, layout):
+        f = os.path.join(os.path.dirname(__file__), 'misc', 'index.json')
+        layout.load_index(f)
+        assert layout.unique('subject') == ['01']
+        assert len(layout.files) == 24
