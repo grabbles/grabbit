@@ -67,8 +67,8 @@ class File(object):
 
 class Entity(object):
 
-    def __init__(self, name, pattern, mandatory=False, directory=None,
-                 **kwargs):
+    def __init__(self, name, pattern=None, mandatory=False, directory=None,
+                 mapper=None, **kwargs):
         """
         Represents a single entity defined in the JSON config.
         Args:
@@ -79,12 +79,19 @@ class Entity(object):
             mandatory (bool): If True, every File _must_ match this entity.
             kwargs (dict): Additional keyword arguments.
         """
+        if pattern is None and mapper is None:
+            raise ValueError("Invalid specification for Entity '%s'; no "
+                             "pattern or mapping function provided. Either the"
+                             " 'pattern' or the 'mapper' arguments must be "
+                             "set." % name)
         self.name = name
         self.pattern = pattern
         self.mandatory = mandatory
         self.directory = directory
+        self.mapper = mapper
         self.files = {}
-        self.regex = re.compile(pattern)
+        self.regex = re.compile(pattern) if pattern is not None else None
+        self.kwargs = kwargs
 
     def __iter__(self):
         for i in self.unique():
@@ -123,7 +130,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False):
+                 absolute_paths=True, regex_search=False, entity_mapper=None):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -149,6 +156,16 @@ class Layout(object):
                 string to each entity in .get() calls. This sets a default for
                 the instance, but can be overridden in individual .get()
                 requests.
+            entity_mapper (object, str): An optional object containing methods
+                for indexing specific entities. If passed, the object must
+                contain a named method for every value that appears in the
+                JSON config file under the "mapper" key of an Entity's entry.
+                For example, if an entity "type" is defined that contains the
+                key/value pair "mapper": "extract_type", then the passed object
+                must contain an .extract_type() method.
+                    Alternatively, the special string "self" can be passed, in
+                which case the current Layout instance will be used as the
+                entity mapper (implying that the user has subclassed Layout).
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -158,6 +175,7 @@ class Layout(object):
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
         self.filtering_regex = {}
+        self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
 
         if config is not None:
             self._load_config(config)
@@ -255,7 +273,20 @@ class Layout(object):
                     continue
 
                 for e in self.entities.values():
-                    e.matches(f)
+                    if e.mapper is not None:
+                        if self.entity_mapper is None:
+                            msg = ("Mapping function '%s' specified for entity"
+                                   " '%s', but no entity mapper was set in the"
+                                   " current Layout. Did you forget to specify"
+                                   "the entity_mapper argument?" % (e.mapper,
+                                    e.name))
+                            raise ValueError(msg)
+                        map_func = getattr(self.entity_mapper, e.mapper)
+                        value = map_func(f, self)
+                        if value:
+                            f.entities[e.name] = value
+                    else:
+                        e.matches(f)
 
                 fe = f.entities.keys()
 
@@ -272,7 +303,7 @@ class Layout(object):
         Args:
             filename (str): Filename to write to.
         '''
-        data = { f.path: f.entities for f in self.files.values() }
+        data = {f.path: f.entities for f in self.files.values()}
         with open(filename, 'w') as outfile:
             json.dump(data, outfile)
 

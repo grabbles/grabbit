@@ -261,3 +261,34 @@ class TestLayout:
         layout.load_index(f)
         assert layout.unique('subject') == ['01']
         assert len(layout.files) == 24
+
+    def test_entity_mapper(self, layout):
+
+        class EntityMapper(object):
+            def hash_file(self, file, layout):
+                return hash(file.path)
+
+        class MappingLayout(Layout):
+            def hash_file(self, file, layout):
+                return str(hash(file.path)) + '.hsh'
+
+        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        config = os.path.join(os.path.dirname(__file__), 'specs',
+                              'test_with_mapper.json')
+
+        # Test with external mapper
+        em = EntityMapper()
+        layout = Layout(root, config, regex_search=True, entity_mapper=em)
+        f = list(layout.files.values())[20]
+        assert hash(f.path) == f.entities['hash']
+
+        # Test with mapper set to self
+        layout = MappingLayout(root, config, regex_search=True,
+                               entity_mapper='self')
+        f = list(layout.files.values())[10]
+        assert str(hash(f.path)) + '.hsh' == f.entities['hash']
+
+        # Should fail if we use a spec with entities that have mappers but
+        # don't specify an entity-mapping object
+        with pytest.raises(ValueError):
+            layout = Layout(root, config, regex_search=True)
