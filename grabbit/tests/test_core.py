@@ -262,14 +262,20 @@ class TestLayout:
         assert layout.unique('subject') == ['01']
         assert len(layout.files) == 24
 
+        # Test with reindexing
+        f = os.path.join(os.path.dirname(__file__), 'misc', 'index.json')
+        layout.load_index(f, reindex=True)
+        assert layout.unique('subject') == ['01']
+        assert len(layout.files) == 24
+
     def test_entity_mapper(self, layout):
 
         class EntityMapper(object):
-            def hash_file(self, file, layout):
+            def hash_file(self, file):
                 return hash(file.path)
 
         class MappingLayout(Layout):
-            def hash_file(self, file, layout):
+            def hash_file(self, file):
                 return str(hash(file.path)) + '.hsh'
 
         root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')

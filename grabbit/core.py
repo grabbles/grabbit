@@ -68,7 +68,7 @@ class File(object):
 class Entity(object):
 
     def __init__(self, name, pattern=None, mandatory=False, directory=None,
-                 mapper=None, **kwargs):
+                 map_func=None, **kwargs):
         """
         Represents a single entity defined in the JSON config.
         Args:
@@ -77,18 +77,23 @@ class Entity(object):
                 Must define at least one group, and only the first group is
                 kept as the match.
             mandatory (bool): If True, every File _must_ match this entity.
+            directory (str): Optional pattern defining a directory associated
+                with the entity.
+            map_func (callable): Optional callable used to extract the Entity's
+                value from the passed string (instead of trying to match on the
+                defined .pattern).
             kwargs (dict): Additional keyword arguments.
         """
-        if pattern is None and mapper is None:
+        if pattern is None and map_func is None:
             raise ValueError("Invalid specification for Entity '%s'; no "
                              "pattern or mapping function provided. Either the"
-                             " 'pattern' or the 'mapper' arguments must be "
+                             " 'pattern' or the 'map_func' arguments must be "
                              "set." % name)
         self.name = name
         self.pattern = pattern
         self.mandatory = mandatory
         self.directory = directory
-        self.mapper = mapper
+        self.map_func = map_func
         self.files = {}
         self.regex = re.compile(pattern) if pattern is not None else None
         self.kwargs = kwargs
@@ -99,15 +104,18 @@ class Entity(object):
 
     def matches(self, f):
         """
-        Run a regex search against the passed file and update the entity/file
-        mappings.
+        Determine whether the passed file matches the Entity and update the
+        Entity/File mappings.
         Args:
             f (File): The File instance to match against.
         """
-        m = self.regex.search(f.path)
-        if m is not None:
-            val = m.group(1)
-            f.entities[self.name] = val
+        if self.map_func is not None:
+            f.entities[self.name] = self.map_func(f)
+        else:
+            m = self.regex.search(f.path)
+            if m is not None:
+                val = m.group(1)
+                f.entities[self.name] = val
 
     def add_file(self, filename, value):
         """ Adds the specified filename to tracking. """
@@ -250,6 +258,26 @@ class Layout(object):
         for ent in self.entities.values():
             ent.files = {}
 
+    def _index_file(self, root, f):
+
+        f = self._make_file_object(root, f)
+
+        if not (self._check_inclusions(f) and self._validate_file(f)):
+            return
+
+        for e in self.entities.values():
+            e.matches(f)
+
+        fe = f.entities.keys()
+
+        # Only keep Files that match at least one Entity, and all
+        # mandatory Entities
+        if fe and not (self.mandatory - set(fe)):
+            self.files[f.path] = f
+            # Bind the File to all of the matching entities
+            for ent, val in f.entities.items():
+                self.entities[ent].add_file(f.path, val)
+
     def index(self):
 
         self._reset_index()
@@ -265,38 +293,10 @@ class Layout(object):
             directories[:] = [os.path.split(d)[1] for d in
                               filter(self._validate_dir, full_dirs)]
 
+            # self._index_filenames(filenames)
+
             for f in filenames:
-
-                f = self._make_file_object(root, f)
-
-                if not (self._check_inclusions(f) and self._validate_file(f)):
-                    continue
-
-                for e in self.entities.values():
-                    if e.mapper is not None:
-                        if self.entity_mapper is None:
-                            msg = ("Mapping function '%s' specified for entity"
-                                   " '%s', but no entity mapper was set in the"
-                                   " current Layout. Did you forget to specify"
-                                   "the entity_mapper argument?" % (e.mapper,
-                                    e.name))
-                            raise ValueError(msg)
-                        map_func = getattr(self.entity_mapper, e.mapper)
-                        value = map_func(f, self)
-                        if value:
-                            f.entities[e.name] = value
-                    else:
-                        e.matches(f)
-
-                fe = f.entities.keys()
-
-                # Only keep Files that match at least one Entity, and all
-                # mandatory Entities
-                if fe and not (self.mandatory - set(fe)):
-                    self.files[f.path] = f
-                    # Bind the File to all of the matching entities
-                    for ent, val in f.entities.items():
-                        self.entities[ent].add_file(f.path, val)
+                self._index_file(root, f)
 
     def save_index(self, filename):
         ''' Save the current Layout's index to a .json file.
@@ -307,10 +307,16 @@ class Layout(object):
         with open(filename, 'w') as outfile:
             json.dump(data, outfile)
 
-    def load_index(self, filename):
+    def load_index(self, filename, reindex=False):
         ''' Load the Layout's index from a plaintext file.
         Args:
             filename (str): Path to the plaintext index file.
+            reindex (bool): If True, discards entity values provided in the
+                loaded index and instead re-indexes every file in the loaded
+                index against the entities defined in the config. Default is
+                False, in which case it is assumed that all entity definitions
+                in the loaded index are correct and do not need any further
+                validation.
         '''
         self._reset_index()
         data = json.load(open(filename, 'r'))
@@ -318,15 +324,31 @@ class Layout(object):
         for path, ents in data.items():
 
             root, f = dirname(path), basename(path)
-            f = self._make_file_object(root, f)
-            f.entities = ents
-            self.files[f.path] = f
+            if reindex:
+                self._index_file(root, f)
+            else:
+                f = self._make_file_object(root, f)
+                f.entities = ents
+                self.files[f.path] = f
 
-            for ent, val in f.entities.items():
-                self.entities[ent].add_file(f.path, val)
+                for ent, val in f.entities.items():
+                    self.entities[ent].add_file(f.path, val)
 
     def add_entity(self, **kwargs):
-            # Set up the entities we need to track
+        ''' Add a new Entity to tracking. '''
+
+        # Set the entity's mapping func if one was specified
+        map_func = kwargs.get('map_func', None)
+        if map_func is not None and not callable(kwargs['map_func']):
+            if self.entity_mapper is None:
+                raise ValueError("Mapping function '%s' specified for Entity "
+                                 "'%s', but no entity mapper was passed when "
+                                 "initializing the current Layout. Please make"
+                                 " sure the 'entity_mapper' argument is set." %
+                                 (map_func, kwargs['name']))
+            map_func = getattr(self.entity_mapper, kwargs['map_func'])
+            kwargs['map_func'] = map_func
+
         ent = Entity(**kwargs)
         if ent.mandatory:
             self.mandatory.add(ent.name)
