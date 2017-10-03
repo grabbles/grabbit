@@ -1,8 +1,16 @@
+0.0.8 (October 2, 2017)
+This release adds several new features:
+- Experimental support for HDFS (thanks to @ValHayot)
+- Ability to include or exclude certain directories from indexing (thanks to @adelavega)
+- Refactored code to support more modular extensions to other file systems
+- Ability to write indexes out to, and reconstruct from, static .json files
+- Support for arbitrary entity mapping functions passed by name in the config file
+
 0.0.7 (August 11, 2017)
 Minor improvements and bug fixes:
-  - Adds option to use strict matching when calling get_nearest()
-  - Adds ability to exclude certain directories from indexing (thanks to @adelavega)
-  - Fix travis config
+- Adds option to use strict matching when calling get_nearest()
+- Adds ability to exclude certain directories from indexing (thanks to @adelavega)
+- Fix travis config
 
 0.0.6 (March 31, 2017)
 Minor improvements and bug fixes:

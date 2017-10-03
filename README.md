@@ -3,7 +3,7 @@ Get grabby with file trees
 
 ## Overview
 
-Grabbit is a lightweight Python 2 and 3 package for simple queries over filenames within a project. It's geared towards projects or applications with highly structured filenames that allow useful queries to be performed without having to inspect the file metadata or contents.
+Grabbit is a lightweight Python 3 package for simple queries over filenames within a project. It's geared towards projects or applications with highly structured filenames that allow useful queries to be performed without having to inspect the file metadata or contents.
 
 ## Installation
 
