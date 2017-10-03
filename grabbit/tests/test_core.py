@@ -2,6 +2,7 @@ import pytest
 from grabbit import File, Entity, Layout
 import os
 import posixpath as psp
+import tempfile
 import json
 
 
@@ -11,6 +12,7 @@ def file(tmpdir):
     fn = tmpdir.mkdir("tmp").join(testfile)
     fn.write('###')
     return File(os.path.join(str(fn)))
+
 
 @pytest.fixture(scope='module', params=['local', 'hdfs'])
 def layout(request):
@@ -29,19 +31,13 @@ def layout(request):
         config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test.json')
         return HDFSLayout(root, config, regex_search=True)
 
-@pytest.fixture(scope='module', params=['local', 'hdfs'])
-def layout2(request):
-    if request.param == 'local':
-        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
-        config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
-        return Layout(root, config, regex_search=True)
-    else:
-        hdfs = pytest.importorskip("hdfs")
-        from grabbit.extensions import HDFSLayout
-        client = hdfs.Config().get_client()
-        root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
-        config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test_include.json')
-        return HDFSLayout(root, config, regex_search=True)
+
+@pytest.fixture(scope='module')
+def layout_include(request):
+    root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+    config = os.path.join(os.path.dirname(__file__), 'specs', 'test_include.json')
+    return Layout(root, config, regex_search=True)
+
 
 class TestFile:
 
@@ -158,14 +154,12 @@ class TestLayout:
             assert result
             assert all([os.path.isabs(f.filename) for f in result])
 
-
     @pytest.mark.parametrize('data_dir, config',
                                 [(os.path.join(os.path.dirname(__file__), 'data', '7t_trt'),
                                  os.path.join(os.path.dirname(__file__), 'specs', 'test.json')),
                                 (psp.join('hdfs://localhost:9000/grabbit/test/', 'data', '7t_trt'),
                                 psp.join('hdfs://localhost:9000/grabbit/test/', 'specs', 'test.json'))])
     def test_dynamic_getters(self, data_dir, config):
-
 
         if ('hdfs' in data_dir or 'hdfs' in config):
             pytest.importorskip('hdfs')
@@ -202,7 +196,8 @@ class TestLayout:
             assert os.path.exists(result[0])
             assert os.path.isdir(result[0])
 
-        result = layout.get(target='subject', type='phasediff', return_type='file')
+        result = layout.get(target='subject', type='phasediff',
+                            return_type='file')
 
         if hasattr(layout, '_hdfs_client'):
             assert all([layout._hdfs_client.content(f) for f in result])
@@ -211,7 +206,7 @@ class TestLayout:
 
     def test_natsort(self, layout):
         result = layout.get(target='subject', return_type='id')
-        assert result[:5] == list(map("%02d".__mod__ , range(1, 6)))
+        assert result[:5] == list(map("%02d".__mod__, range(1, 6)))
 
     def test_unique_and_count(self, layout):
         result = layout.unique('subject')
@@ -225,7 +220,8 @@ class TestLayout:
                             extensions='.json', return_type='file')[0]
         nearest = layout.get_nearest(result, type='sessions', extensions='tsv',
                                      ignore_strict_entities=['type'])
-        assert '7t_trt/sub-01/sub-01_sessions.tsv' in nearest
+        target = os.path.join('7t_trt', 'sub-01', 'sub-01_sessions.tsv')
+        assert target in nearest
         nearest = layout.get_nearest(result, extensions='tsv', all_=True,
                                      ignore_strict_entities=['type'])
         assert len(nearest) == 3
@@ -235,13 +231,70 @@ class TestLayout:
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
 
-    def test_index_regex(self, layout, layout2):
-        assert os.path.join(
-            layout.root, 'derivatives/excluded.json') not in layout.files
-        assert os.path.join(
-            layout2.root, 'models/excluded_model.json') not in layout2.files
+    def test_index_regex(self, layout, layout_include):
+        targ = os.path.join(layout.root, 'derivatives', 'excluded.json')
+        assert targ not in layout.files
+        targ = os.path.join(layout_include.root, 'models',
+                            'excluded_model.json')
+        assert targ not in layout_include.files
 
         with pytest.raises(ValueError):
-            layout2._load_config({'entities' : [],
-                                  'index' : {'include' : 'test',
-                                             'exclude' : 'test'}})
+            layout_include._load_config({'entities': [],
+                                         'index': {'include': 'test',
+                                                   'exclude': 'test'}})
+
+    def test_save_index(self, layout):
+        tmp = tempfile.mkstemp(suffix='.json')[1]
+        layout.save_index(tmp)
+        assert os.path.exists(tmp)
+        with open(tmp, 'r') as infile:
+            index = json.load(infile)
+        assert len(index) == len(layout.files)
+        # Check that entities for first 10 files match
+        for i in range(10):
+            f = list(layout.files.values())[i]
+            assert f.entities == index[f.path]
+        os.unlink(tmp)
+
+    def test_load_index(self, layout):
+        f = os.path.join(os.path.dirname(__file__), 'misc', 'index.json')
+        layout.load_index(f)
+        assert layout.unique('subject') == ['01']
+        assert len(layout.files) == 24
+
+        # Test with reindexing
+        f = os.path.join(os.path.dirname(__file__), 'misc', 'index.json')
+        layout.load_index(f, reindex=True)
+        assert layout.unique('subject') == ['01']
+        assert len(layout.files) == 24
+
+    def test_entity_mapper(self, layout):
+
+        class EntityMapper(object):
+            def hash_file(self, file):
+                return hash(file.path)
+
+        class MappingLayout(Layout):
+            def hash_file(self, file):
+                return str(hash(file.path)) + '.hsh'
+
+        root = os.path.join(os.path.dirname(__file__), 'data', '7t_trt')
+        config = os.path.join(os.path.dirname(__file__), 'specs',
+                              'test_with_mapper.json')
+
+        # Test with external mapper
+        em = EntityMapper()
+        layout = Layout(root, config, regex_search=True, entity_mapper=em)
+        f = list(layout.files.values())[20]
+        assert hash(f.path) == f.entities['hash']
+
+        # Test with mapper set to self
+        layout = MappingLayout(root, config, regex_search=True,
+                               entity_mapper='self')
+        f = list(layout.files.values())[10]
+        assert str(hash(f.path)) + '.hsh' == f.entities['hash']
+
+        # Should fail if we use a spec with entities that have mappers but
+        # don't specify an entity-mapping object
+        with pytest.raises(ValueError):
+            layout = Layout(root, config, regex_search=True)

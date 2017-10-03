@@ -1,0 +1,130 @@
+{
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/dataset_description.json": {
+    "type": "description"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/participants.tsv": {
+    "type": "trt/participants"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/task-rest_acq-fullbrain_bold.json": {
+    "type": "bold",
+    "task": "rest_acq"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/task-rest_acq-fullbrain_run-1_physio.json": {
+    "run": "1",
+    "type": "physio",
+    "task": "rest_acq",
+    "acquisition": "fullbrain_run"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/task-rest_acq-fullbrain_run-2_physio.json": {
+    "run": "2",
+    "type": "physio",
+    "task": "rest_acq",
+    "acquisition": "fullbrain_run"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/task-rest_acq-prefrontal_bold.json": {
+    "type": "bold",
+    "task": "rest_acq"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/task-rest_acq-prefrontal_physio.json": {
+    "type": "physio",
+    "task": "rest_acq"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/test.bval": {
+    "type": "trt/test",
+    "bval": "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/test.bval"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/models/excluded_model.json": {
+    "type": "model"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/sub-01_sessions.tsv": {
+    "subject": "01",
+    "type": "sessions"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/sub-01_ses-1_scans.tsv": {
+    "subject": "01",
+    "session": "1",
+    "type": "scans"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/anat/sub-01_ses-1_T1map.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "type": "T1map"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/anat/sub-01_ses-1_T1w.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "type": "T1w"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-1_magnitude1.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "1",
+    "type": "magnitude1"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-1_magnitude2.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "1",
+    "type": "magnitude2"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-1_phasediff.json": {
+    "subject": "01",
+    "session": "1",
+    "run": "1",
+    "type": "phasediff"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-1_phasediff.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "1",
+    "type": "phasediff"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-2_magnitude1.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "2",
+    "type": "magnitude1"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-2_magnitude2.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "2",
+    "type": "magnitude2"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-2_phasediff.json": {
+    "subject": "01",
+    "session": "1",
+    "run": "2",
+    "type": "phasediff"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/fmap/sub-01_ses-1_run-2_phasediff.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "2",
+    "type": "phasediff"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/func/sub-01_ses-1_task-rest_acq-fullbrain_run-1_bold.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "1",
+    "type": "bold",
+    "task": "rest_acq",
+    "acquisition": "fullbrain_run"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/func/sub-01_ses-1_task-rest_acq-fullbrain_run-1_physio.tsv.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "1",
+    "type": "physio",
+    "task": "rest_acq",
+    "acquisition": "fullbrain_run"
+  },
+  "/mnt/c/Users/tyark/Dropbox/Code/grabbit/grabbit/tests/data/7t_trt/sub-01/ses-1/func/sub-01_ses-1_task-rest_acq-fullbrain_run-2_bold.nii.gz": {
+    "subject": "01",
+    "session": "1",
+    "run": "2",
+    "type": "bold",
+    "task": "rest_acq",
+    "acquisition": "fullbrain_run"
+  }
+}

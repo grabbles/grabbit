@@ -6,7 +6,6 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
-import six
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -61,14 +60,15 @@ class File(object):
         Returns the File as a named tuple. The full path plus all entity
         key/value pairs are returned as attributes.
         """
-        _File = namedtuple('File', 'filename ' + ' '.join(self.entities.keys()))
+        _File = namedtuple('File', 'filename ' +
+                           ' '.join(self.entities.keys()))
         return _File(filename=self.path, **self.entities)
 
 
 class Entity(object):
 
-    def __init__(self, name, pattern, mandatory=False, directory=None,
-                 **kwargs):
+    def __init__(self, name, pattern=None, mandatory=False, directory=None,
+                 map_func=None, **kwargs):
         """
         Represents a single entity defined in the JSON config.
         Args:
@@ -77,14 +77,26 @@ class Entity(object):
                 Must define at least one group, and only the first group is
                 kept as the match.
             mandatory (bool): If True, every File _must_ match this entity.
+            directory (str): Optional pattern defining a directory associated
+                with the entity.
+            map_func (callable): Optional callable used to extract the Entity's
+                value from the passed string (instead of trying to match on the
+                defined .pattern).
             kwargs (dict): Additional keyword arguments.
         """
+        if pattern is None and map_func is None:
+            raise ValueError("Invalid specification for Entity '%s'; no "
+                             "pattern or mapping function provided. Either the"
+                             " 'pattern' or the 'map_func' arguments must be "
+                             "set." % name)
         self.name = name
         self.pattern = pattern
         self.mandatory = mandatory
         self.directory = directory
+        self.map_func = map_func
         self.files = {}
-        self.regex = re.compile(pattern)
+        self.regex = re.compile(pattern) if pattern is not None else None
+        self.kwargs = kwargs
 
     def __iter__(self):
         for i in self.unique():
@@ -92,15 +104,18 @@ class Entity(object):
 
     def matches(self, f):
         """
-        Run a regex search against the passed file and update the entity/file
-        mappings.
+        Determine whether the passed file matches the Entity and update the
+        Entity/File mappings.
         Args:
             f (File): The File instance to match against.
         """
-        m = self.regex.search(f.path)
-        if m is not None:
-            val = m.group(1)
-            f.entities[self.name] = val
+        if self.map_func is not None:
+            f.entities[self.name] = self.map_func(f)
+        else:
+            m = self.regex.search(f.path)
+            if m is not None:
+                val = m.group(1)
+                f.entities[self.name] = val
 
     def add_file(self, filename, value):
         """ Adds the specified filename to tracking. """
@@ -122,14 +137,18 @@ class Entity(object):
 
 class Layout(object):
 
-    def __init__(self, path, config=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False):
+    def __init__(self, path, config=None, index=None, dynamic_getters=False,
+                 absolute_paths=True, regex_search=False, entity_mapper=None):
         """
         A container for all the files and metadata found at the specified path.
         Args:
             path (str): The root path of the layout.
             config (str): The path to the JSON config file that defines the
             entities and paths for the current layout.
+            index (str): Optional path to a saved index file. If a valid value
+                is passed, this index is used to populate Files and Entities,
+                and the normal indexing process (which requires scanning all
+                files in the project) is skipped.
             dynamic_getters (bool): If True, a get_{entity_name}() method will
                 be dynamically added to the Layout every time a new Entity is
                 created. This is implemented by creating a partial function of
@@ -145,6 +164,16 @@ class Layout(object):
                 string to each entity in .get() calls. This sets a default for
                 the instance, but can be overridden in individual .get()
                 requests.
+            entity_mapper (object, str): An optional object containing methods
+                for indexing specific entities. If passed, the object must
+                contain a named method for every value that appears in the
+                JSON config file under the "mapper" key of an Entity's entry.
+                For example, if an entity "type" is defined that contains the
+                key/value pair "mapper": "extract_type", then the passed object
+                must contain an .extract_type() method.
+                    Alternatively, the special string "self" can be passed, in
+                which case the current Layout instance will be used as the
+                entity mapper (implying that the user has subclassed Layout).
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -154,9 +183,15 @@ class Layout(object):
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
         self.filtering_regex = {}
+        self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
 
         if config is not None:
             self._load_config(config)
+
+        if index is None:
+            self.index()
+        else:
+            self.load_index(index)
 
     def _load_config(self, config):
         if isinstance(config, six.string_types):
@@ -168,17 +203,16 @@ class Layout(object):
         if 'index' in config:
             self.filtering_regex = config['index']
             if self.filtering_regex.get('include') and \
-                self.filtering_regex.get('exclude'):
-                    raise ValueError("You can only define either include or "
-                                     "exclude regex, not both.")
-        self.index()
+               self.filtering_regex.get('exclude'):
+                raise ValueError("You can only define either include or "
+                                 "exclude regex, not both.")
 
     def _check_inclusions(self, f):
-        ''' Check if file or directory against regexes in config to determine if
+        ''' Check file or directory against regexes in config to determine if
             it should be included in the index '''
         filename = f if isinstance(f, six.string_types) else f.path
 
-        # If file matches any include regex, then true
+        # If file matches any include regex, then True
         include_regex = self.filtering_regex.get('include', [])
         if include_regex:
             for regex in include_regex:
@@ -195,17 +229,17 @@ class Layout(object):
         return True
 
     def _validate_dir(self, d):
-        ''' Extend this in subclasses to provide additional directory validation.
-        Will be called the first time a directory is read in; if False is
-        returned, the directory will be ignored and dropped from the layout. '''
-
+        ''' Extend this in subclasses to provide additional directory
+        validation. Will be called the first time a directory is read in; if
+        False is returned, the directory will be ignored and dropped from the
+        layout.
+        '''
         return self._validate_file(d)
 
     def _validate_file(self, f):
         ''' Extend this in subclasses to provide additional file validation.
         Will be called the first time each file is read in; if False is
         returned, the file will be ignored and dropped from the layout. '''
-
         return True
 
     def _get_files(self):
@@ -214,13 +248,39 @@ class Layout(object):
         return os.walk(self.root, topdown=True)
 
     def _make_file_object(self, root, f):
+        ''' Initialize a new File oject from a directory and filename. Extend
+        in subclasses as needed. '''
         return File(join(root, f))
 
-    def index(self):
+    def _reset_index(self):
         # Reset indexes
         self.files = {}
         for ent in self.entities.values():
             ent.files = {}
+
+    def _index_file(self, root, f):
+
+        f = self._make_file_object(root, f)
+
+        if not (self._check_inclusions(f) and self._validate_file(f)):
+            return
+
+        for e in self.entities.values():
+            e.matches(f)
+
+        fe = f.entities.keys()
+
+        # Only keep Files that match at least one Entity, and all
+        # mandatory Entities
+        if fe and not (self.mandatory - set(fe)):
+            self.files[f.path] = f
+            # Bind the File to all of the matching entities
+            for ent, val in f.entities.items():
+                self.entities[ent].add_file(f.path, val)
+
+    def index(self):
+
+        self._reset_index()
 
         dataset = self._get_files()
 
@@ -230,42 +290,76 @@ class Layout(object):
             # Exclude directories that match exclude regex from further search
             full_dirs = [os.path.join(root, d) for d in directories]
             full_dirs = filter(self._check_inclusions, full_dirs)
-            directories[:] = [os.path.split(d)[1] for d in \
-                        filter(self._validate_dir, full_dirs)]
+            directories[:] = [os.path.split(d)[1] for d in
+                              filter(self._validate_dir, full_dirs)]
+
+            # self._index_filenames(filenames)
 
             for f in filenames:
+                self._index_file(root, f)
 
+    def save_index(self, filename):
+        ''' Save the current Layout's index to a .json file.
+        Args:
+            filename (str): Filename to write to.
+        '''
+        data = {f.path: f.entities for f in self.files.values()}
+        with open(filename, 'w') as outfile:
+            json.dump(data, outfile)
+
+    def load_index(self, filename, reindex=False):
+        ''' Load the Layout's index from a plaintext file.
+        Args:
+            filename (str): Path to the plaintext index file.
+            reindex (bool): If True, discards entity values provided in the
+                loaded index and instead re-indexes every file in the loaded
+                index against the entities defined in the config. Default is
+                False, in which case it is assumed that all entity definitions
+                in the loaded index are correct and do not need any further
+                validation.
+        '''
+        self._reset_index()
+        data = json.load(open(filename, 'r'))
+
+        for path, ents in data.items():
+
+            root, f = dirname(path), basename(path)
+            if reindex:
+                self._index_file(root, f)
+            else:
                 f = self._make_file_object(root, f)
+                f.entities = ents
+                self.files[f.path] = f
 
-                if not (self._check_inclusions(f) and self._validate_file(f)):
-                    continue
-
-                for e in self.entities.values():
-                    e.matches(f)
-
-                fe = f.entities.keys()
-
-                # Only keep Files that match at least one Entity, and all
-                # mandatory Entities
-                if fe and not (self.mandatory - set(fe)):
-                    self.files[f.path] = f
-                    # Bind the File to all of the matching entities
-                    for ent, val in f.entities.items():
-                        self.entities[ent].add_file(f.path, val)
+                for ent, val in f.entities.items():
+                    self.entities[ent].add_file(f.path, val)
 
     def add_entity(self, **kwargs):
-            # Set up the entities we need to track
-            ent = Entity(**kwargs)
-            if ent.mandatory:
-                self.mandatory.add(ent.name)
-            if ent.directory is not None:
-                ent.directory = ent.directory.replace('{{root}}', self.root)
-            self.entities[ent.name] = ent
-            if self.dynamic_getters:
-                func = partial(getattr(self, 'get'), target=ent.name,
-                               return_type='id')
-                func_name = inflect.engine().plural(ent.name)
-                setattr(self, 'get_%s' % func_name, func)
+        ''' Add a new Entity to tracking. '''
+
+        # Set the entity's mapping func if one was specified
+        map_func = kwargs.get('map_func', None)
+        if map_func is not None and not callable(kwargs['map_func']):
+            if self.entity_mapper is None:
+                raise ValueError("Mapping function '%s' specified for Entity "
+                                 "'%s', but no entity mapper was passed when "
+                                 "initializing the current Layout. Please make"
+                                 " sure the 'entity_mapper' argument is set." %
+                                 (map_func, kwargs['name']))
+            map_func = getattr(self.entity_mapper, kwargs['map_func'])
+            kwargs['map_func'] = map_func
+
+        ent = Entity(**kwargs)
+        if ent.mandatory:
+            self.mandatory.add(ent.name)
+        if ent.directory is not None:
+            ent.directory = ent.directory.replace('{{root}}', self.root)
+        self.entities[ent.name] = ent
+        if self.dynamic_getters:
+            func = partial(getattr(self, 'get'), target=ent.name,
+                           return_type='id')
+            func_name = inflect.engine().plural(ent.name)
+            setattr(self, 'get_%s' % func_name, func)
 
     def get(self, return_type='tuple', target=None, extensions=None,
             regex_search=None, **kwargs):
@@ -335,7 +429,7 @@ class Layout(object):
                     patt = self.entities[ent].pattern
                     template = template.replace('{%s}' % ent, patt)
                 template += '[^\%s]*$' % os.path.sep
-                matches = [f.dirname for f in self.files.values() \
+                matches = [f.dirname for f in self.files.values()
                            if re.search(template, f.dirname)]
                 return natural_sort(list(set(matches)))
 
@@ -428,6 +522,7 @@ class Layout(object):
         for filename in results:
             f = self.files[filename]
             folders[f.dirname].append(f)
+
         def count_matches(f):
             keys = set(entities.keys()) & set(f.entities.keys())
             shared = len(keys)
@@ -457,7 +552,7 @@ class Layout(object):
                 if _path == path:
                     break
                 path = _path
-            except:
+            except Exception:
                 break
 
         matches = [m.path if return_type == 'file' else m.as_named_tuple()

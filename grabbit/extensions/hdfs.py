@@ -1,6 +1,9 @@
-from grabbit import Layout
+from grabbit import Layout, File
+from grabbit.external import six
 from hdfs import Config
 import posixpath as psp
+from os.path import abspath
+import json
 
 
 class HDFSLayout(Layout):
@@ -31,23 +34,25 @@ class HDFSLayout(Layout):
         """
         self._hdfs_client = Config().get_client()
 
-        path = abspath(path) if absolute_paths and self._hdfs_client is None else path
+        path = abspath(path) if absolute_paths and self._hdfs_client is None \
+            else path
 
         # Preprocess the config file
         if isinstance(config, six.string_types):
             config = '/'.join(config.strip('hdfs://').split('/')[1:])
             config = config.replace(self._hdfs_client.root[1:], '')
             with self._hdfs_client.read(config) as reader:
-                    config = json.load(reader)
+                config = json.load(reader)
 
         super(HDFSLayout, self).__init__(path, config, dynamic_getters,
                                          absolute_paths, regex_search)
 
     def _get_files(self):
-        self.root = '/'.join(self.root.strip('hdfs://').split('/')[1:]).replace(self._hdfs_client.root[1:], '')
+        self.root = '/'.join(self.root.strip('hdfs://').split('/')
+                             [1:]).replace(self._hdfs_client.root[1:], '')
         return self._hdfs_client.walk(self.root)
 
     def _make_file_object(self, root, f):
         filepath = str(psp.join(root, f))
-        with self._hdfs_client.read(filepath) as reader:
+        with self._hdfs_client.read(filepath):
             return File(filepath)
