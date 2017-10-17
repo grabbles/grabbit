@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shutil
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
@@ -184,6 +185,7 @@ class Layout(object):
         self.regex_search = regex_search
         self.filtering_regex = {}
         self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
+        self.default_output_path = None
 
         if config is not None:
             self._load_config(config)
@@ -206,6 +208,9 @@ class Layout(object):
                self.filtering_regex.get('exclude'):
                 raise ValueError("You can only define either include or "
                                  "exclude regex, not both.")
+
+        if 'default_output_path' in config:
+            self.default_output_path = config['default_output_path']
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if
@@ -407,6 +412,9 @@ class Layout(object):
             result = [r.as_named_tuple() for r in result]
             return natural_sort(result, field='filename')
 
+        if return_type == 'File':
+            return result
+
         else:
             if target is None:
                 raise ValueError('If return_type is "id" or "dir", a valid '
@@ -558,3 +566,23 @@ class Layout(object):
         matches = [m.path if return_type == 'file' else m.as_named_tuple()
                    for m in matches]
         return matches if all_ else matches[0] if matches else None
+
+    def write_files(self, output_path=None, symbolic_links=True, **get_kwargs):
+        if output_path is None:
+            if self.default_output_path is None:
+                raise ValueError('Not output path specified in arguments or '
+                                 'config file.')
+            output_path = self.default_output_path
+
+        ents = re.findall('\{(.*?)\}', output_path)
+
+        files = self.get(return_type='File', **get_kwargs)
+        for filename, file in files:
+            new_path = output_path
+            for ent in ents:
+                new_path.replace('{%s}' % ent, file.entities[ent])
+            os.makedirs(dirname(new_path))
+            if symbolic_links:
+                os.symlink(filename, new_path)
+            else:
+                shutil.copy(filename, new_path)
