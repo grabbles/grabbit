@@ -5,7 +5,7 @@ import shutil
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
-from os.path import join, basename, dirname, abspath, split
+from os.path import join, basename, dirname, abspath, split, exists, islink
 from functools import partial
 
 
@@ -577,12 +577,22 @@ class Layout(object):
         ents = re.findall('\{(.*?)\}', output_path)
 
         files = self.get(return_type='File', **get_kwargs)
-        for filename, file in files:
+        for f in files:
             new_path = output_path
             for ent in ents:
-                new_path.replace('{%s}' % ent, file.entities[ent])
-            os.makedirs(dirname(new_path))
+                if ent in f.entities:
+                    new_path = new_path.replace('{%s}' % ent, f.entities[ent])
+                else:
+                    raise ValueError('Entity %s not found in file %s' %
+                                     (ent, f.path))
+
+            if not exists(new_path):
+                os.makedirs(new_path)
+            new_path += f.filename
             if symbolic_links:
-                os.symlink(filename, new_path)
+                if not islink(new_path):
+                    os.symlink(f.path, new_path)
             else:
-                shutil.copy(filename, new_path)
+                if islink(new_path):
+                    os.remove(new_path)
+                shutil.copy(f.path, new_path)
