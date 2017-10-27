@@ -7,6 +7,7 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort
 from os.path import join, basename, dirname, abspath, split, exists, islink
 from functools import partial
+from six import string_types
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -14,7 +15,7 @@ __all__ = ['File', 'Entity', 'Layout']
 
 class File(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, write_patterns=None):
         """
         Represents a single file.
         """
@@ -22,6 +23,27 @@ class File(object):
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
         self.entities = {}
+        self.write_patterns = write_patterns
+
+    @property
+    def output_filename(self):
+        if not self.write_patterns:
+            return self.path
+        else:
+            # if isinstance(self.write_patterns, string_types):
+            #     self.write_patterns = [self.write_patterns]
+
+            pattern = self.write_patterns
+            ents = re.findall('\{(.*?)\}', pattern)
+            new_path = pattern
+            for ent in ents:
+                if ent in self.entities:
+                    new_path = new_path.replace('{%s}' % ent, self.entities[ent])
+                else:
+                    raise ValueError('Entity %s not found in file %s' %
+                                     (ent, self.path))
+
+            return new_path
 
     def _matches(self, entities=None, extensions=None, regex_search=False):
         """
@@ -567,32 +589,23 @@ class Layout(object):
                    for m in matches]
         return matches if all_ else matches[0] if matches else None
 
-    def write_files(self, output_path=None, symbolic_links=True, **get_kwargs):
-        if output_path is None:
-            if self.default_output_path is None:
-                raise ValueError('Not output path specified in arguments or '
-                                 'config file.')
-            output_path = self.default_output_path
+    def write_files(self, files=None, write_patterns=None, symbolic_links=True,
+                    **get_kwargs):
+        if not files:
+            files = self.get(return_type='File', **get_kwargs)
 
-        ents = re.findall('\{(.*?)\}', output_path)
-
-        files = self.get(return_type='File', **get_kwargs)
         for f in files:
-            new_path = output_path
-            for ent in ents:
-                if ent in f.entities:
-                    new_path = new_path.replace('{%s}' % ent, f.entities[ent])
-                else:
-                    raise ValueError('Entity %s not found in file %s' %
-                                     (ent, f.path))
+            f.write_patterns = write_patterns
+            new_filename = f.output_filename
 
-            if not exists(new_path):
-                os.makedirs(new_path)
-            new_path += f.filename
-            if symbolic_links:
-                if not islink(new_path):
-                    os.symlink(f.path, new_path)
-            else:
-                if islink(new_path):
-                    os.remove(new_path)
-                shutil.copy(f.path, new_path)
+            if not exists(dirname(new_filename)):
+                os.makedirs(dirname(new_filename))
+
+            if not exists(new_filename):
+                if symbolic_links:
+                    if not islink(new_filename):
+                        os.symlink(f.path, new_filename)
+                else:
+                    if islink(new_filename):
+                        os.remove(new_filename)
+                    shutil.copy(f.path, new_filename)
