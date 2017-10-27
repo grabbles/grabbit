@@ -45,6 +45,22 @@ class File(object):
 
             return new_path
 
+    def write_file(self, write_patterns=None, symbolic_link=True):
+        self.write_patterns = write_patterns
+        new_filename = self.output_filename
+
+        if not exists(dirname(new_filename)):
+            os.makedirs(dirname(new_filename))
+
+        if not exists(new_filename):
+            if symbolic_link:
+                if not islink(new_filename):
+                    os.symlink(self.path, new_filename)
+            else:
+                if islink(new_filename):
+                    os.remove(new_filename)
+                shutil.copy(self.path, new_filename)
+
     def _matches(self, entities=None, extensions=None, regex_search=False):
         """
         Checks whether the file matches all of the passed entities and
@@ -595,17 +611,4 @@ class Layout(object):
             files = self.get(return_type='File', **get_kwargs)
 
         for f in files:
-            f.write_patterns = write_patterns
-            new_filename = f.output_filename
-
-            if not exists(dirname(new_filename)):
-                os.makedirs(dirname(new_filename))
-
-            if not exists(new_filename):
-                if symbolic_links:
-                    if not islink(new_filename):
-                        os.symlink(f.path, new_filename)
-                else:
-                    if islink(new_filename):
-                        os.remove(new_filename)
-                    shutil.copy(f.path, new_filename)
+            f.write_file(write_patterns=write_patterns, symbolic_link=symbolic_links)
