@@ -25,10 +25,11 @@ class File(object):
         self.entities = {}
         self.write_patterns = write_patterns
 
-    @property
-    def output_filename(self):
-        if not self.write_patterns:
-            return self.path
+    def get_filename(self, write_patterns=None):
+        if not write_patterns:
+            write_patterns = self.write_patterns
+            if not write_patterns:
+                return self.path
         else:
             # if isinstance(self.write_patterns, string_types):
             #     self.write_patterns = [self.write_patterns]
@@ -223,7 +224,6 @@ class Layout(object):
         self.regex_search = regex_search
         self.filtering_regex = {}
         self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
-        self.default_output_path = None
 
         if config is not None:
             self._load_config(config)
@@ -232,6 +232,10 @@ class Layout(object):
             self.index()
         else:
             self.load_index(index)
+
+        if 'default_write_patterns' in config:
+            for name, f in self.files:
+                f.write_patterns = config['default_write_patterns']
 
     def _load_config(self, config):
         if isinstance(config, six.string_types):
@@ -246,9 +250,6 @@ class Layout(object):
                self.filtering_regex.get('exclude'):
                 raise ValueError("You can only define either include or "
                                  "exclude regex, not both.")
-
-        if 'default_output_path' in config:
-            self.default_output_path = config['default_output_path']
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if
