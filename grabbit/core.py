@@ -1,10 +1,12 @@
 import json
+import logging
 import os
 import re
 import shutil
+import sys
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
-from grabbit.utils import natural_sort
+from grabbit.utils import natural_sort, splitext
 from os.path import join, basename, dirname, abspath, split, exists, islink
 from functools import partial
 from six import string_types
@@ -26,14 +28,28 @@ class File(object):
         self.write_patterns = write_patterns
 
     def get_filename(self, write_patterns=None):
-        if not write_patterns:
-            write_patterns = self.write_patterns
-            if not write_patterns:
-                return self.path
-        else:
-            # if isinstance(self.write_patterns, string_types):
-            #     self.write_patterns = [self.write_patterns]
+        """
+        Constructs a path for this file given this files entities and a list of
+        potential filename patterns to use.
 
+        Args:
+            write_patterns (str, list): One or more filename patterns to write
+                the file to. Entities should be represented by the name
+                surrounded by curly braces. Optional portions of the patterns
+                should be denoted by double curly braces.
+                Pattern example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
+                Example result: 'sub-01/var-SES/1045.csv'
+        """
+        if not write_patterns:
+            if self.write_patterns:
+                write_patterns = self.write_patterns
+            else:
+                return self.path
+
+        if isinstance(write_patterns, string_types):
+            write_patterns = [write_patterns]
+
+        for pattern in write_patterns:
             pattern = self.write_patterns
             ents = re.findall('\{(.*?)\}', pattern)
             new_path = pattern
@@ -46,21 +62,68 @@ class File(object):
 
             return new_path
 
-    def write_file(self, write_patterns=None, symbolic_link=True):
+    def write_file(self, write_patterns=None, symbolic_link=True,
+                   root=None, conflicts='fail'):
+        """
+        Uses provided filename patterns to write this file to a new path, given
+        this file's corresponding entity values.
+
+        Args:
+            write_patterns (str, list): One or more filename patterns to write
+                the file to.
+            symbolic_link (bool): Whether to copy the file as a symbolic link
+                or a deep copy.
+            root (str): Optional root directory that all patterns are relative
+                to. Defaults to current working directory.
+            conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
+                that defines the desired action when the output path already
+                exists. 'fail' raises an exception; 'skip' does nothing;
+                'overwrite' overwrites the existing file; 'append' adds a suffix
+                to each file copy, starting with 0. Default is 'fail'.
+        """
+
         self.write_patterns = write_patterns
-        new_filename = self.output_filename
+        new_filename = self.get_filename(write_patterns=write_patterns)
+
+        if not root:
+            root = os.getcwd()
+
+        new_filename = join(root, new_filename)
+
+        if new_filename == self.path:
+            return
 
         if not exists(dirname(new_filename)):
             os.makedirs(dirname(new_filename))
 
-        if not exists(new_filename):
-            if symbolic_link:
-                if not islink(new_filename):
-                    os.symlink(self.path, new_filename)
+        if exists(new_filename) or islink(new_filename):
+            if conflicts == 'fail':
+                raise ValueError('A file at path %s already exists'
+                                 .format(new_filename))
+            elif conflicts == 'skip':
+                logging.warn('A file at path %s already exists, skipping'
+                             'writing out this file'.format(new_filename))
+                return
+            elif conflicts == 'overwrite':
+                os.remove(new_filename)
+            elif conflicts == 'append':
+                i = 1
+                while i < sys.maxint:
+                    path_splits = splitext(new_filename)
+                    path_splits[0] = path_splits[0] + '_%d' % i
+                    appended_filename = os.extsep.join(path_splits)
+                    if not exists(appended_filename) and \
+                       not islink(appended_filename):
+                        new_filename = appended_filename
+                        break
+                    i += 1
             else:
-                if islink(new_filename):
-                    os.remove(new_filename)
-                shutil.copy(self.path, new_filename)
+                raise ValueError('Did not provide a valid conflicts parameter')
+
+        if symbolic_link:
+            os.symlink(self.path, new_filename)
+        else:
+            shutil.copy(self.path, new_filename)
 
     def _matches(self, entities=None, extensions=None, regex_search=False):
         """
@@ -334,7 +397,7 @@ class Layout(object):
             # Exclude directories that match exclude regex from further search
             full_dirs = [os.path.join(root, d) for d in directories]
             full_dirs = filter(self._check_inclusions, full_dirs)
-            directories[:] = [os.path.split(d)[1] for d in
+            directories[:] = [split(d)[1] for d in
                               filter(self._validate_dir, full_dirs)]
 
             # self._index_filenames(filenames)
@@ -607,9 +670,33 @@ class Layout(object):
         return matches if all_ else matches[0] if matches else None
 
     def write_files(self, files=None, write_patterns=None, symbolic_links=True,
-                    **get_kwargs):
+                    root=None, conflicts='fail', **get_kwargs):
+        """
+        Writes desired files to new paths as specified by write_patterns.
+
+        Args:
+            files (list): Optional list of File objects to write out. If none
+                provided, use files from running a get() query using remaining
+                **kwargs.
+            write_patterns (str, list): Write patterns to pass to each file's
+                write_file method.
+            symbolic_links (bool): Whether to copy each file as a symbolic link
+                or a deep copy.
+            root (str): Optional root directory that all patterns are relative
+                to. Defaults to current working directory.
+            conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
+                that defines the desired action when a output path already
+                exists. 'fail' raises an exception; 'skip' does nothing;
+                'overwrite' overwrites the existing file; 'append' adds a suffix
+                to each file copy, starting with 0. Default is 'fail'.
+            **get_kwargs (kwargs): Optional key word arguments to pass into a
+                get() query.
+        """
         if not files:
             files = self.get(return_type='File', **get_kwargs)
 
         for f in files:
-            f.write_file(write_patterns=write_patterns, symbolic_link=symbolic_links)
+            f.write_file(write_patterns=write_patterns,
+                         symbolic_link=symbolic_links,
+                         root=root,
+                         conflicts=conflicts)
