@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, splitext
-from os.path import join, basename, dirname, abspath, split, exists, islink
+from os.path import join, basename, dirname, abspath, split, exists, islink, isabs
 from functools import partial
 from six import string_types
 
@@ -17,7 +17,7 @@ __all__ = ['File', 'Entity', 'Layout']
 
 class File(object):
 
-    def __init__(self, filename, write_patterns=None):
+    def __init__(self, filename, path_patterns=None):
         """
         Represents a single file.
         """
@@ -25,32 +25,35 @@ class File(object):
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
         self.entities = {}
-        self.write_patterns = write_patterns
+        self.path_patterns = path_patterns
 
-    def get_filename(self, write_patterns=None):
+    def get_filename(self, path_patterns=None):
         """
         Constructs a path for this file given this files entities and a list of
         potential filename patterns to use.
 
         Args:
-            write_patterns (str, list): One or more filename patterns to write
+            path_patterns (str, list): One or more filename patterns to write
                 the file to. Entities should be represented by the name
                 surrounded by curly braces. Optional portions of the patterns
                 should be denoted by double curly braces.
                 Pattern example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
                 Example result: 'sub-01/var-SES/1045.csv'
+
+        Returns:
+            A constructed path for this file based on the provided patterns.
         """
-        if not write_patterns:
-            if self.write_patterns:
-                write_patterns = self.write_patterns
+        if not path_patterns:
+            if self.path_patterns:
+                path_patterns = self.path_patterns
             else:
                 return self.path
 
-        if isinstance(write_patterns, string_types):
-            write_patterns = [write_patterns]
+        if isinstance(path_patterns, string_types):
+            path_patterns = [path_patterns]
 
-        for pattern in write_patterns:
-            pattern = self.write_patterns
+        for pattern in path_patterns:
+            pattern = self.path_patterns
             ents = re.findall('\{(.*?)\}', pattern)
             new_path = pattern
             for ent in ents:
@@ -62,14 +65,14 @@ class File(object):
 
             return new_path
 
-    def write_file(self, write_patterns=None, symbolic_link=True,
-                   root=None, conflicts='fail'):
+    def write_file(self, path_patterns=None, symbolic_link=True,
+                   root=None, conflicts='fail', copy_into_dir=True):
         """
         Uses provided filename patterns to write this file to a new path, given
         this file's corresponding entity values.
 
         Args:
-            write_patterns (str, list): One or more filename patterns to write
+            path_patterns (str, list): One or more filename patterns to write
                 the file to.
             symbolic_link (bool): Whether to copy the file as a symbolic link
                 or a deep copy.
@@ -80,12 +83,15 @@ class File(object):
                 exists. 'fail' raises an exception; 'skip' does nothing;
                 'overwrite' overwrites the existing file; 'append' adds a suffix
                 to each file copy, starting with 0. Default is 'fail'.
+            copy_into_dir (bool): If a path pattern is a directory, this flag
+                indicates whether to use the original basename and copy into
+                the directory. Otherwise, will default to the behavior
+                specified by the `conflicts` parameter.
         """
 
-        self.write_patterns = write_patterns
-        new_filename = self.get_filename(write_patterns=write_patterns)
+        new_filename = self.get_filename(path_patterns=path_patterns)
 
-        if not root:
+        if not root and not isabs(new_filename):
             root = os.getcwd()
 
         new_filename = join(root, new_filename)
@@ -296,9 +302,9 @@ class Layout(object):
         else:
             self.load_index(index)
 
-        if 'default_write_patterns' in config:
+        if 'default_path_patterns' in config:
             for name, f in self.files:
-                f.write_patterns = config['default_write_patterns']
+                f.path_patterns = config['default_path_patterns']
 
     def _load_config(self, config):
         if isinstance(config, six.string_types):
@@ -669,16 +675,16 @@ class Layout(object):
                    for m in matches]
         return matches if all_ else matches[0] if matches else None
 
-    def write_files(self, files=None, write_patterns=None, symbolic_links=True,
+    def write_files(self, files=None, path_patterns=None, symbolic_links=True,
                     root=None, conflicts='fail', **get_kwargs):
         """
-        Writes desired files to new paths as specified by write_patterns.
+        Writes desired files to new paths as specified by path_patterns.
 
         Args:
             files (list): Optional list of File objects to write out. If none
                 provided, use files from running a get() query using remaining
                 **kwargs.
-            write_patterns (str, list): Write patterns to pass to each file's
+            path_patterns (str, list): Write patterns to pass to each file's
                 write_file method.
             symbolic_links (bool): Whether to copy each file as a symbolic link
                 or a deep copy.
@@ -696,7 +702,7 @@ class Layout(object):
             files = self.get(return_type='File', **get_kwargs)
 
         for f in files:
-            f.write_file(write_patterns=write_patterns,
+            f.write_file(path_patterns=path_patterns,
                          symbolic_link=symbolic_links,
                          root=root,
                          conflicts=conflicts)
