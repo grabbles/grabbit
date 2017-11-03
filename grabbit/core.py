@@ -56,14 +56,16 @@ class File(object):
         for pattern in path_patterns:
             ents = re.findall('\{(.*?)\}', pattern)
             new_path = pattern
+            ents_matched = True
             for ent in ents:
                 if ent in self.entities:
                     new_path = new_path.replace('{%s}' % ent, self.entities[ent])
                 else:
-                    raise ValueError('Entity %s not found in file %s' %
-                                     (ent, self.path))
+                    # An entity in the pattern is not an entity for this file
+                    ents_matched = False
 
-            return new_path
+            if ents_matched:
+                return new_path
 
     def write_file(self, path_patterns=None, symbolic_link=True,
                    root=None, conflicts='fail', copy_into_dir=True):
