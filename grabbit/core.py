@@ -28,6 +28,22 @@ class File(object):
         self.entities = {}
         self.path_patterns = path_patterns
 
+    def replace_entities(self, pattern):
+        new_path = pattern
+        ents = re.findall('\{(.*?)\}', pattern)
+        ents_matched = True
+        for ent in ents:
+            if ent in self.entities:
+                new_path = new_path.replace('{%s}' % ent, self.entities[ent])
+            else:
+                # An entity in the pattern is not an entity for this file
+                ents_matched = False
+
+        if ents_matched:
+            return new_path
+        else:
+            return None
+
     def get_filename(self, path_patterns=None):
         """
         Constructs a path for this file given this files entities and a list of
@@ -54,17 +70,19 @@ class File(object):
             path_patterns = [path_patterns]
 
         for pattern in path_patterns:
-            ents = re.findall('\{(.*?)\}', pattern)
             new_path = pattern
-            ents_matched = True
-            for ent in ents:
-                if ent in self.entities:
-                    new_path = new_path.replace('{%s}' % ent, self.entities[ent])
+            optional_patterns = re.findall('\[(.*?)\]', pattern)
+            for optional_pattern in optional_patterns:
+                optional_chunk = self.replace_entities(optional_pattern)
+                if optional_chunk:
+                    new_path = new_path.replace('[%s]' % optional_pattern,
+                                                optional_chunk)
                 else:
-                    # An entity in the pattern is not an entity for this file
-                    ents_matched = False
+                    new_path = new_path.replace('[%s]' % optional_pattern,
+                                                '')
 
-            if ents_matched:
+            new_path = self.replace_entities(new_path)
+            if new_path:
                 return new_path
 
     def write_file(self, path_patterns=None, symbolic_link=True,
