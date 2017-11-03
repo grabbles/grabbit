@@ -7,7 +7,8 @@ import sys
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, splitext
-from os.path import join, basename, dirname, abspath, split, exists, islink, isabs
+from os.path import (join, basename, dirname, abspath, split, exists, islink,
+                     isabs, isdir)
 from functools import partial
 from six import string_types
 
@@ -53,7 +54,6 @@ class File(object):
             path_patterns = [path_patterns]
 
         for pattern in path_patterns:
-            pattern = self.path_patterns
             ents = re.findall('\{(.*?)\}', pattern)
             new_path = pattern
             for ent in ents:
@@ -102,15 +102,22 @@ class File(object):
         if not exists(dirname(new_filename)):
             os.makedirs(dirname(new_filename))
 
+        if new_filename[-1] == os.sep and copy_into_dir:
+            new_filename += self.filename
+
         if exists(new_filename) or islink(new_filename):
             if conflicts == 'fail':
-                raise ValueError('A file at path %s already exists'
-                                 .format(new_filename))
+                msg = 'A file at path {} already exists.'
+                raise ValueError(msg.format(new_filename))
             elif conflicts == 'skip':
-                logging.warn('A file at path %s already exists, skipping'
-                             'writing out this file'.format(new_filename))
+                msg = 'A file at path {} already exists, skipping writing file.'
+                logging.warn(msg.format(new_filename))
                 return
             elif conflicts == 'overwrite':
+                if isdir(new_filename):
+                    logging.warn('New path is a directory, not going to '
+                                 'overwrite it, skipping instead.')
+                    return
                 os.remove(new_filename)
             elif conflicts == 'append':
                 i = 1
@@ -676,7 +683,8 @@ class Layout(object):
         return matches if all_ else matches[0] if matches else None
 
     def write_files(self, files=None, path_patterns=None, symbolic_links=True,
-                    root=None, conflicts='fail', **get_kwargs):
+                    root=None, conflicts='fail', copy_into_dir=True,
+                    **get_kwargs):
         """
         Writes desired files to new paths as specified by path_patterns.
 
@@ -695,6 +703,10 @@ class Layout(object):
                 exists. 'fail' raises an exception; 'skip' does nothing;
                 'overwrite' overwrites the existing file; 'append' adds a suffix
                 to each file copy, starting with 0. Default is 'fail'.
+            copy_into_dir (bool): If a path pattern is a directory, this flag
+                indicates whether to use the original basename and copy into
+                the directory. Otherwise, will default to the behavior
+                specified by the `conflicts` parameter.
             **get_kwargs (kwargs): Optional key word arguments to pass into a
                 get() query.
         """
@@ -705,4 +717,5 @@ class Layout(object):
             f.write_file(path_patterns=path_patterns,
                          symbolic_link=symbolic_links,
                          root=root,
-                         conflicts=conflicts)
+                         conflicts=conflicts,
+                         copy_into_dir=copy_into_dir)
