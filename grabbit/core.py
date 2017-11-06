@@ -44,7 +44,7 @@ class File(object):
         else:
             return None
 
-    def get_filename(self, path_patterns=None):
+    def get_path(self, path_patterns=None):
         """
         Constructs a path for this file given this files entities and a list of
         potential filename patterns to use.
@@ -85,7 +85,7 @@ class File(object):
             if new_path:
                 return new_path
 
-    def write_file(self, path_patterns=None, symbolic_link=True,
+    def write_file(self, path_patterns=None, symbolic_link=False,
                    root=None, conflicts='fail', copy_into_dir=True):
         """
         Uses provided filename patterns to write this file to a new path, given
@@ -109,7 +109,9 @@ class File(object):
                 specified by the `conflicts` parameter.
         """
 
-        new_filename = self.get_filename(path_patterns=path_patterns)
+        new_filename = self.get_path(path_patterns=path_patterns)
+        if not new_filename:
+            return
 
         if not root and not isabs(new_filename):
             root = os.getcwd()
@@ -329,7 +331,7 @@ class Layout(object):
         else:
             self.load_index(index)
 
-        if 'default_path_patterns' in config:
+        if config and 'default_path_patterns' in config:
             for name, f in self.files:
                 f.path_patterns = config['default_path_patterns']
 
