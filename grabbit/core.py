@@ -143,7 +143,7 @@ class File(object):
                 os.remove(new_filename)
             elif conflicts == 'append':
                 i = 1
-                while i < sys.maxint:
+                while i < sys.maxsize:
                     path_splits = splitext(new_filename)
                     path_splits[0] = path_splits[0] + '_%d' % i
                     appended_filename = os.extsep.join(path_splits)
