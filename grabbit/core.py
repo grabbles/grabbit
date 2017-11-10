@@ -29,6 +29,19 @@ class File(object):
         self.path_patterns = path_patterns
 
     def replace_entities(self, pattern):
+        """
+        Replaces all entity names in the a given pattern with the corresponding
+        values for this file.
+
+        Args:
+            pattern (str): A path pattern that contains entity names denoted
+                by curly braces.
+                For example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
+
+        Returns:
+            A new string with the entity values inserted where entity names
+            were denoted in the provided pattern.
+        """
         new_path = pattern
         ents = re.findall('\{(.*?)\}', pattern)
         ents_matched = True
@@ -44,7 +57,7 @@ class File(object):
         else:
             return None
 
-    def get_path(self, path_patterns=None):
+    def build_path(self, path_patterns=None):
         """
         Constructs a path for this file given this files entities and a list of
         potential filename patterns to use.
@@ -64,14 +77,17 @@ class File(object):
             if self.path_patterns:
                 path_patterns = self.path_patterns
             else:
-                return self.path
+                msg = 'No path patterns specified to build a new path from.'
+                raise ValueError(msg)
 
         if isinstance(path_patterns, string_types):
             path_patterns = [path_patterns]
 
         for pattern in path_patterns:
+            # Iterate through the provided path patterns
             new_path = pattern
             optional_patterns = re.findall('\[(.*?)\]', pattern)
+            # First build from optional patterns if possible
             for optional_pattern in optional_patterns:
                 optional_chunk = self.replace_entities(optional_pattern)
                 if optional_chunk:
@@ -82,6 +98,7 @@ class File(object):
                                                 '')
 
             new_path = self.replace_entities(new_path)
+            # Build from required patterns, only return a valid (not None) path
             if new_path:
                 return new_path
 
@@ -102,14 +119,14 @@ class File(object):
                 that defines the desired action when the output path already
                 exists. 'fail' raises an exception; 'skip' does nothing;
                 'overwrite' overwrites the existing file; 'append' adds a suffix
-                to each file copy, starting with 0. Default is 'fail'.
+                to each file copy, starting with 1. Default is 'fail'.
             copy_into_dir (bool): If a path pattern is a directory, this flag
                 indicates whether to use the original basename and copy into
                 the directory. Otherwise, will default to the behavior
                 specified by the `conflicts` parameter.
         """
 
-        new_filename = self.get_path(path_patterns=path_patterns)
+        new_filename = self.build_path(path_patterns=path_patterns)
         if not new_filename:
             return
 

@@ -70,16 +70,17 @@ class TestFile:
         assert not hasattr(tup, 'task')
         assert tup.attrA == 'apple'
 
-    def test_get_filename(self, file):
+    def test_build_path(self, file):
         file.entities = {'task': 'rest', 'run': '2', 'subject': '3'}
 
         # Single simple pattern
-        assert file.get_path() == file.path
+        with pytest.raises(ValueError):
+            file.build_path()
         pat = join(file.dirname, '{task}/sub-{subject}/run-{run}.nii.gz')
         target = join(file.dirname, 'rest/sub-3/run-2.nii.gz')
-        assert file.get_path(pat) == target
+        assert file.build_path(pat) == target
         file.path_patterns = pat
-        assert file.get_path() == target
+        assert file.build_path() == target
 
         # Multiple simple patterns
         pats = ['{session}/{task}/r-{run}.nii.gz',
@@ -87,14 +88,14 @@ class TestFile:
                 '{subject}/{task}.nii.gz']
         pats = [join(file.dirname, p) for p in pats]
         target = join(file.dirname, 't-rest/3-2.nii.gz')
-        assert file.get_path(pats) == target
+        assert file.build_path(pats) == target
 
         # Pattern with optional entity
         pats = ['[{session}/]{task}/r-{run}.nii.gz',
                 't-{task}/{subject}-{run}.nii.gz']
         pats = [join(file.dirname, p) for p in pats]
         target = join(file.dirname, 'rest/r-2.nii.gz')
-        assert file.get_path(pats) == target
+        assert file.build_path(pats) == target
 
     def test_write_file(self, file, tmpdir, capsys):
         file.entities = {'task': 'rest', 'run': '2', 'subject': '3'}
