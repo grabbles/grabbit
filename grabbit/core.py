@@ -293,7 +293,8 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, entity_mapper=None):
+                 absolute_paths=True, regex_search=False, entity_mapper=None,
+                 path_patterns=None):
         """
         A container for all the files and metadata found at the specified path.
         Args:
@@ -329,6 +330,10 @@ class Layout(object):
                     Alternatively, the special string "self" can be passed, in
                 which case the current Layout instance will be used as the
                 entity mapper (implying that the user has subclassed Layout).
+            path_patterns (str, list): One or more filename patterns to use
+                as a default path pattern for this layout's files. See the
+                build_path() method of the File class for more information.
+                Can also be specified in the config file.
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -339,6 +344,7 @@ class Layout(object):
         self.regex_search = regex_search
         self.filtering_regex = {}
         self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
+        self.path_patterns = path_patterns if path_patterns else []
 
         if config is not None:
             self._load_config(config)
@@ -347,10 +353,6 @@ class Layout(object):
             self.index()
         else:
             self.load_index(index)
-
-        if config and 'default_path_patterns' in config:
-            for name, f in self.files:
-                f.path_patterns = config['default_path_patterns']
 
     def _load_config(self, config):
         if isinstance(config, six.string_types):
@@ -365,6 +367,9 @@ class Layout(object):
                self.filtering_regex.get('exclude'):
                 raise ValueError("You can only define either include or "
                                  "exclude regex, not both.")
+
+        if 'default_path_patterns' in config:
+            self.path_patterns += config['default_path_patterns']
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if
@@ -409,7 +414,7 @@ class Layout(object):
     def _make_file_object(self, root, f):
         ''' Initialize a new File oject from a directory and filename. Extend
         in subclasses as needed. '''
-        return File(join(root, f))
+        return File(join(root, f), path_patterns=self.path_patterns)
 
     def _reset_index(self):
         # Reset indexes
@@ -566,7 +571,7 @@ class Layout(object):
             result = [r.as_named_tuple() for r in result]
             return natural_sort(result, field='filename')
 
-        if return_type == 'File':
+        if return_type.startswith('obj'):
             return result
 
         else:
@@ -749,8 +754,11 @@ class Layout(object):
             **get_kwargs (kwargs): Optional key word arguments to pass into a
                 get() query.
         """
-        if not files:
-            files = self.get(return_type='File', **get_kwargs)
+        if files:
+            query_files = self.get(return_type='objects', **get_kwargs)
+            files = list(set(files).intersection(query_files))
+        else:
+            files = self.get(return_type='objects', **get_kwargs)
 
         for f in files:
             f.write_file(path_patterns=path_patterns,
