@@ -141,10 +141,6 @@ class TestFile:
         target = join(file.dirname, 'rest', file.filename)
         assert exists(target)
         shutil.rmtree(new_dir)
-        file.write_file(pat, copy_into_dir=False, conflicts='append')
-        target = join(file.dirname, 'rest', '_1')  # this is a little fuzzy
-        assert exists(target)
-        shutil.rmtree(new_dir)
 
 
 class TestEntity:

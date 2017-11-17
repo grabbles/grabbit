@@ -103,7 +103,7 @@ class File(object):
                 return new_path
 
     def write_file(self, path_patterns=None, symbolic_link=False,
-                   root=None, conflicts='fail', copy_into_dir=True):
+                   root=None, conflicts='fail'):
         """
         Uses provided filename patterns to write this file to a new path, given
         this file's corresponding entity values.
@@ -120,10 +120,6 @@ class File(object):
                 exists. 'fail' raises an exception; 'skip' does nothing;
                 'overwrite' overwrites the existing file; 'append' adds a suffix
                 to each file copy, starting with 1. Default is 'fail'.
-            copy_into_dir (bool): If a path pattern is a directory, this flag
-                indicates whether to use the original basename and copy into
-                the directory. Otherwise, will default to the behavior
-                specified by the `conflicts` parameter.
         """
 
         new_filename = self.build_path(path_patterns=path_patterns)
@@ -133,7 +129,8 @@ class File(object):
         if not root and not isabs(new_filename):
             root = os.getcwd()
 
-        new_filename = join(root, new_filename)
+        if root:
+            new_filename = join(root, new_filename)
 
         if new_filename == self.path:
             return
@@ -141,7 +138,7 @@ class File(object):
         if not exists(dirname(new_filename)):
             os.makedirs(dirname(new_filename))
 
-        if new_filename[-1] == os.sep and copy_into_dir:
+        if new_filename[-1] == os.sep:
             new_filename += self.filename
 
         if exists(new_filename) or islink(new_filename):
@@ -727,8 +724,7 @@ class Layout(object):
         return matches if all_ else matches[0] if matches else None
 
     def write_files(self, files=None, path_patterns=None, symbolic_links=True,
-                    root=None, conflicts='fail', copy_into_dir=True,
-                    **get_kwargs):
+                    root=None, conflicts='fail', **get_kwargs):
         """
         Writes desired files to new paths as specified by path_patterns.
 
@@ -747,10 +743,6 @@ class Layout(object):
                 exists. 'fail' raises an exception; 'skip' does nothing;
                 'overwrite' overwrites the existing file; 'append' adds a suffix
                 to each file copy, starting with 0. Default is 'fail'.
-            copy_into_dir (bool): If a path pattern is a directory, this flag
-                indicates whether to use the original basename and copy into
-                the directory. Otherwise, will default to the behavior
-                specified by the `conflicts` parameter.
             **get_kwargs (kwargs): Optional key word arguments to pass into a
                 get() query.
         """
@@ -764,5 +756,4 @@ class Layout(object):
             f.write_file(path_patterns=path_patterns,
                          symbolic_link=symbolic_links,
                          root=root,
-                         conflicts=conflicts,
-                         copy_into_dir=copy_into_dir)
+                         conflicts=conflicts)
