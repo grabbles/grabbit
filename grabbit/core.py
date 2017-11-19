@@ -35,7 +35,7 @@ def replace_entities(pattern, entities):
     ents_matched = True
     for ent in ents:
         if ent in entities:
-            new_path = new_path.replace('{%s}' % ent, entities[ent])
+            new_path = new_path.replace('{%s}' % ent, str(entities[ent]))
         else:
             # An entity in the pattern is not an entity for this file
             ents_matched = False
@@ -93,9 +93,7 @@ def write_contents_to_file(path, contents=None, link_to=None,
     a corresponding entity map.
 
     Args:
-        path_patterns (str, list): One or more filename patterns to write
-            the file to.
-        entities (dict): A dictionary mapping entity names to entity values.
+        path (str): Destination path of the desired contents.
         contents (str): Raw text or binary encoded string of contents to write
             to the new path.
         link_to (str): Optional path with which to create a symbolic link to.
@@ -784,3 +782,14 @@ class Layout(object):
                          symbolic_link=symbolic_links,
                          root=root,
                          conflicts=conflicts)
+
+    def write_contents_to_file(self, entities, path_patterns=None,
+                               contents=None, link_to=None,
+                               content_mode='text', conflicts='fail'):
+        if not path_patterns:
+            path_patterns = self.path_patterns
+        path = build_path(path_patterns, entities)
+        write_contents_to_file(path, contents=contents, link_to=link_to,
+                               content_mode=content_mode, conflicts=conflicts,
+                               root=self.root)
+        self._index_file(self.root, path)

@@ -389,3 +389,37 @@ class TestLayout:
                                          '/type-bold'
                                          '/task-rest_acq.nii.gz')
         assert exists(example_file)
+
+    def test_write_contents_to_file(self):
+        contents = 'test'
+        data_dir = join(dirname(__file__), 'data', '7t_trt')
+        config = join(dirname(__file__), 'specs', 'test.json')
+        layout = Layout(data_dir, config)
+        entities = {'subject': 'Bob', 'session': '01'}
+        pat = join('sub-{subject}/sess-{session}/desc.txt')
+        layout.write_contents_to_file(entities, path_patterns=pat,
+                                      contents=contents)
+        target = join(data_dir, 'sub-Bob/sess-01/desc.txt')
+        assert exists(target)
+        with open(target) as f:
+            written = f.read()
+        assert written == contents
+        assert target in layout.files
+        shutil.rmtree(join(data_dir, 'sub-Bob'))
+
+    def test_write_contents_to_file_defaults(self):
+        contents = 'test'
+        data_dir = join(dirname(__file__), 'data', '7t_trt')
+        config = join(dirname(__file__), 'specs', 'test.json')
+        layout = Layout(data_dir, config)
+        entities = {'subject': 'Bob', 'session': '01', 'run': '1',
+                    'type': 'test', 'task': 'test', 'acquisition': 'test',
+                    'bval': 0}
+        layout.write_contents_to_file(entities, contents=contents)
+        target = join(data_dir, 'sub-Bob/ses-01/Bob011testtesttest0')
+        assert exists(target)
+        with open(target) as f:
+            written = f.read()
+        assert written == contents
+        assert target in layout.files
+        shutil.rmtree(join(data_dir, 'sub-Bob'))
