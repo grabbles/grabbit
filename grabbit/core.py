@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import re
-import shutil
 import sys
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
@@ -14,6 +13,149 @@ from six import string_types
 
 
 __all__ = ['File', 'Entity', 'Layout']
+
+
+def replace_entities(pattern, entities):
+    """
+    Replaces all entity names in the a given pattern with the corresponding
+    values provided by entities.
+
+    Args:
+        pattern (str): A path pattern that contains entity names denoted
+            by curly braces.
+            For example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
+        entities (dict): A dictionary mapping entity names to entity values.
+
+    Returns:
+        A new string with the entity values inserted where entity names
+        were denoted in the provided pattern.
+    """
+    new_path = pattern
+    ents = re.findall('\{(.*?)\}', pattern)
+    ents_matched = True
+    for ent in ents:
+        if ent in entities:
+            new_path = new_path.replace('{%s}' % ent, entities[ent])
+        else:
+            # An entity in the pattern is not an entity for this file
+            ents_matched = False
+
+    if ents_matched:
+        return new_path
+    else:
+        return None
+
+
+def build_path(path_patterns, entities):
+    """
+    Constructs a path given a set of entities and a list of potential
+    filename patterns to use.
+
+    Args:
+        path_patterns (str, list): One or more filename patterns to write
+            the file to. Entities should be represented by the name
+            surrounded by curly braces. Optional portions of the patterns
+            should be denoted by double curly braces.
+            Pattern example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
+            Example result: 'sub-01/var-SES/1045.csv'
+        entities (dict): A dictionary mapping entity names to entity values.
+
+    Returns:
+        A constructed path for this file based on the provided patterns.
+    """
+    if isinstance(path_patterns, string_types):
+        path_patterns = [path_patterns]
+
+    for pattern in path_patterns:
+        # Iterate through the provided path patterns
+        new_path = pattern
+        optional_patterns = re.findall('\[(.*?)\]', pattern)
+        # First build from optional patterns if possible
+        for optional_pattern in optional_patterns:
+            optional_chunk = replace_entities(optional_pattern, entities)
+            if optional_chunk:
+                new_path = new_path.replace('[%s]' % optional_pattern,
+                                            optional_chunk)
+            else:
+                new_path = new_path.replace('[%s]' % optional_pattern,
+                                            '')
+
+        new_path = replace_entities(new_path, entities)
+        # Build from required patterns, only return a valid (not None) path
+        if new_path:
+            return new_path
+
+
+def write_contents_to_file(path, contents=None, link_to=None,
+                           content_mode='text', root=None, conflicts='fail'):
+    """
+    Uses provided filename patterns to write contents to a new path, given
+    a corresponding entity map.
+
+    Args:
+        path_patterns (str, list): One or more filename patterns to write
+            the file to.
+        entities (dict): A dictionary mapping entity names to entity values.
+        contents (str): Raw text or binary encoded string of contents to write
+            to the new path.
+        link_to (str): Optional path with which to create a symbolic link to.
+            Used as an alternative to and takes priority over the contents
+            argument.
+        content_mode (str): Either 'text' or 'binary' to indicate the writing
+            mode for the new file. Only relevant if contents is provided.
+        root (str): Optional root directory that all patterns are relative
+            to. Defaults to current working directory.
+        conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
+            that defines the desired action when the output path already
+            exists. 'fail' raises an exception; 'skip' does nothing;
+            'overwrite' overwrites the existing file; 'append' adds a suffix
+            to each file copy, starting with 1. Default is 'fail'.
+    """
+    if not root and not isabs(path):
+        root = os.getcwd()
+
+    if root:
+        path = join(root, path)
+
+    if exists(path) or islink(path):
+        if conflicts == 'fail':
+            msg = 'A file at path {} already exists.'
+            raise ValueError(msg.format(path))
+        elif conflicts == 'skip':
+            msg = 'A file at path {} already exists, skipping writing file.'
+            logging.warn(msg.format(path))
+            return
+        elif conflicts == 'overwrite':
+            if isdir(path):
+                logging.warn('New path is a directory, not going to '
+                             'overwrite it, skipping instead.')
+                return
+            os.remove(path)
+        elif conflicts == 'append':
+            i = 1
+            while i < sys.maxsize:
+                path_splits = splitext(path)
+                path_splits[0] = path_splits[0] + '_%d' % i
+                appended_filename = os.extsep.join(path_splits)
+                if not exists(appended_filename) and \
+                   not islink(appended_filename):
+                    path = appended_filename
+                    break
+                i += 1
+        else:
+            raise ValueError('Did not provide a valid conflicts parameter')
+
+    if not exists(dirname(path)):
+        os.makedirs(dirname(path))
+
+    if link_to:
+        os.symlink(link_to, path)
+    elif contents:
+        mode = 'wb' if content_mode == 'binary' else 'w'
+        with open(path, mode) as f:
+            f.write(contents)
+    else:
+        raise ValueError('One of contents or link_to must be provided.')
 
 
 class File(object):
@@ -28,51 +170,7 @@ class File(object):
         self.entities = {}
         self.path_patterns = path_patterns
 
-    def replace_entities(self, pattern):
-        """
-        Replaces all entity names in the a given pattern with the corresponding
-        values for this file.
-
-        Args:
-            pattern (str): A path pattern that contains entity names denoted
-                by curly braces.
-                For example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
-
-        Returns:
-            A new string with the entity values inserted where entity names
-            were denoted in the provided pattern.
-        """
-        new_path = pattern
-        ents = re.findall('\{(.*?)\}', pattern)
-        ents_matched = True
-        for ent in ents:
-            if ent in self.entities:
-                new_path = new_path.replace('{%s}' % ent, self.entities[ent])
-            else:
-                # An entity in the pattern is not an entity for this file
-                ents_matched = False
-
-        if ents_matched:
-            return new_path
-        else:
-            return None
-
     def build_path(self, path_patterns=None):
-        """
-        Constructs a path for this file given this files entities and a list of
-        potential filename patterns to use.
-
-        Args:
-            path_patterns (str, list): One or more filename patterns to write
-                the file to. Entities should be represented by the name
-                surrounded by curly braces. Optional portions of the patterns
-                should be denoted by double curly braces.
-                Pattern example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
-                Example result: 'sub-01/var-SES/1045.csv'
-
-        Returns:
-            A constructed path for this file based on the provided patterns.
-        """
         if not path_patterns:
             if self.path_patterns:
                 path_patterns = self.path_patterns
@@ -80,99 +178,28 @@ class File(object):
                 msg = 'No path patterns specified to build a new path from.'
                 raise ValueError(msg)
 
-        if isinstance(path_patterns, string_types):
-            path_patterns = [path_patterns]
+        return build_path(path_patterns, self.entities)
 
-        for pattern in path_patterns:
-            # Iterate through the provided path patterns
-            new_path = pattern
-            optional_patterns = re.findall('\[(.*?)\]', pattern)
-            # First build from optional patterns if possible
-            for optional_pattern in optional_patterns:
-                optional_chunk = self.replace_entities(optional_pattern)
-                if optional_chunk:
-                    new_path = new_path.replace('[%s]' % optional_pattern,
-                                                optional_chunk)
-                else:
-                    new_path = new_path.replace('[%s]' % optional_pattern,
-                                                '')
-
-            new_path = self.replace_entities(new_path)
-            # Build from required patterns, only return a valid (not None) path
-            if new_path:
-                return new_path
-
-    def write_file(self, path_patterns=None, symbolic_link=False,
+    def build_file(self, path_patterns=None, symbolic_link=False,
                    root=None, conflicts='fail'):
-        """
-        Uses provided filename patterns to write this file to a new path, given
-        this file's corresponding entity values.
-
-        Args:
-            path_patterns (str, list): One or more filename patterns to write
-                the file to.
-            symbolic_link (bool): Whether to copy the file as a symbolic link
-                or a deep copy.
-            root (str): Optional root directory that all patterns are relative
-                to. Defaults to current working directory.
-            conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
-                that defines the desired action when the output path already
-                exists. 'fail' raises an exception; 'skip' does nothing;
-                'overwrite' overwrites the existing file; 'append' adds a suffix
-                to each file copy, starting with 1. Default is 'fail'.
-        """
-
         new_filename = self.build_path(path_patterns=path_patterns)
         if not new_filename:
             return
 
-        if not root and not isabs(new_filename):
-            root = os.getcwd()
-
-        if root:
-            new_filename = join(root, new_filename)
-
-        if new_filename == self.path:
-            return
-
-        if not exists(dirname(new_filename)):
-            os.makedirs(dirname(new_filename))
-
         if new_filename[-1] == os.sep:
             new_filename += self.filename
 
-        if exists(new_filename) or islink(new_filename):
-            if conflicts == 'fail':
-                msg = 'A file at path {} already exists.'
-                raise ValueError(msg.format(new_filename))
-            elif conflicts == 'skip':
-                msg = 'A file at path {} already exists, skipping writing file.'
-                logging.warn(msg.format(new_filename))
-                return
-            elif conflicts == 'overwrite':
-                if isdir(new_filename):
-                    logging.warn('New path is a directory, not going to '
-                                 'overwrite it, skipping instead.')
-                    return
-                os.remove(new_filename)
-            elif conflicts == 'append':
-                i = 1
-                while i < sys.maxsize:
-                    path_splits = splitext(new_filename)
-                    path_splits[0] = path_splits[0] + '_%d' % i
-                    appended_filename = os.extsep.join(path_splits)
-                    if not exists(appended_filename) and \
-                       not islink(appended_filename):
-                        new_filename = appended_filename
-                        break
-                    i += 1
-            else:
-                raise ValueError('Did not provide a valid conflicts parameter')
-
         if symbolic_link:
-            os.symlink(self.path, new_filename)
+            contents = None
+            link_to = self.path
         else:
-            shutil.copy(self.path, new_filename)
+            with open(self.path, 'r') as f:
+                contents = f.read()
+            link_to = None
+
+        write_contents_to_file(new_filename, contents=contents,
+                               link_to=link_to, content_mode='text',
+                               root=root, conflicts=conflicts)
 
     def _matches(self, entities=None, extensions=None, regex_search=False):
         """
@@ -724,7 +751,7 @@ class Layout(object):
         return matches if all_ else matches[0] if matches else None
 
     def write_files(self, files=None, path_patterns=None, symbolic_links=True,
-                    root=None, conflicts='fail', **get_kwargs):
+                    root=None, conflicts='fail', **get_selectors):
         """
         Writes desired files to new paths as specified by path_patterns.
 
@@ -743,17 +770,17 @@ class Layout(object):
                 exists. 'fail' raises an exception; 'skip' does nothing;
                 'overwrite' overwrites the existing file; 'append' adds a suffix
                 to each file copy, starting with 0. Default is 'fail'.
-            **get_kwargs (kwargs): Optional key word arguments to pass into a
+            **get_selectors (kwargs): Optional key word arguments to pass into a
                 get() query.
         """
         if files:
-            query_files = self.get(return_type='objects', **get_kwargs)
+            query_files = self.get(return_type='objects', **get_selectors)
             files = list(set(files).intersection(query_files))
         else:
-            files = self.get(return_type='objects', **get_kwargs)
+            files = self.get(return_type='objects', **get_selectors)
 
         for f in files:
-            f.write_file(path_patterns=path_patterns,
+            f.build_file(path_patterns=path_patterns,
                          symbolic_link=symbolic_links,
                          root=root,
                          conflicts=conflicts)
