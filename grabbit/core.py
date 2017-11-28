@@ -12,7 +12,8 @@ from functools import partial
 from six import string_types
 
 
-__all__ = ['File', 'Entity', 'Layout']
+__all__ = ['File', 'Entity', 'Layout', 'replace_entities', 'build_path',
+           'write_contents_to_file']
 
 
 def replace_entities(pattern, entities):
@@ -559,6 +560,7 @@ class Layout(object):
                 'dir': returns a list of directories.
                 'id': returns a list of unique IDs. Must be used together with
                     a valid target.
+                'obj': returns a list of matching File objects.
             target (str): The name of the target entity to get results for
                 (if return_type is 'dir' or 'id').
             extensions (str, list): One or more file extensions to filter on.
