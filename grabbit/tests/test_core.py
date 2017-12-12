@@ -4,8 +4,6 @@ import os
 import posixpath as psp
 import tempfile
 import json
-import shutil
-from os.path import join, exists, islink, dirname
 
 
 @pytest.fixture
@@ -69,78 +67,6 @@ class TestFile:
         assert isinstance(tup, tuple)
         assert not hasattr(tup, 'task')
         assert tup.attrA == 'apple'
-
-    def test_build_path(self, file):
-        file.entities = {'task': 'rest', 'run': '2', 'subject': '3'}
-
-        # Single simple pattern
-        with pytest.raises(ValueError):
-            file.build_path()
-        pat = join(file.dirname, '{task}/sub-{subject}/run-{run}.nii.gz')
-        target = join(file.dirname, 'rest/sub-3/run-2.nii.gz')
-        assert file.build_path(pat) == target
-        file.path_patterns = pat
-        assert file.build_path() == target
-
-        # Multiple simple patterns
-        pats = ['{session}/{task}/r-{run}.nii.gz',
-                't-{task}/{subject}-{run}.nii.gz',
-                '{subject}/{task}.nii.gz']
-        pats = [join(file.dirname, p) for p in pats]
-        target = join(file.dirname, 't-rest/3-2.nii.gz')
-        assert file.build_path(pats) == target
-
-        # Pattern with optional entity
-        pats = ['[{session}/]{task}/r-{run}.nii.gz',
-                't-{task}/{subject}-{run}.nii.gz']
-        pats = [join(file.dirname, p) for p in pats]
-        target = join(file.dirname, 'rest/r-2.nii.gz')
-        assert file.build_path(pats) == target
-
-    def test_build_file(self, file, tmpdir, capsys):
-        file.entities = {'task': 'rest', 'run': '2', 'subject': '3'}
-
-        # Simple write out
-        new_dir = join(file.dirname, 'rest')
-        pat = join(file.dirname, '{task}/sub-{subject}/run-{run}.nii.gz')
-        target = join(file.dirname, 'rest/sub-3/run-2.nii.gz')
-        file.build_file(pat)
-        assert exists(target)
-
-        # Conflict handling
-        with pytest.raises(ValueError):
-            file.build_file(pat)
-        with pytest.raises(ValueError):
-            file.build_file(pat, conflicts='fail')
-        file.build_file(pat, conflicts='skip')
-        out, err = capsys.readouterr()
-        assert err == 'WARNING:root:A file at path {} already exists, ' \
-                      'skipping writing file.\n'.format(target)
-        file.build_file(pat, conflicts='append')
-        append_target = join(file.dirname, 'rest/sub-3/run-2_1.nii.gz')
-        assert exists(append_target)
-        file.build_file(pat, conflicts='overwrite')
-        assert exists(target)
-        shutil.rmtree(new_dir)
-
-        # Symbolic linking
-        file.build_file(pat, symbolic_link=True)
-        assert islink(target)
-        shutil.rmtree(new_dir)
-
-        # Using different root
-        root = str(tmpdir.mkdir('tmp2'))
-        pat = join(root, '{task}/sub-{subject}/run-{run}.nii.gz')
-        target = join(root, 'rest/sub-3/run-2.nii.gz')
-        file.build_file(pat, root=root)
-        assert exists(target)
-
-        # Copy into directory functionality
-        pat = join(file.dirname, '{task}/')
-        file.build_file(pat)
-        target = join(file.dirname, 'rest', file.filename)
-        assert exists(target)
-        shutil.rmtree(new_dir)
 
 
 class TestEntity:
@@ -372,54 +298,3 @@ class TestLayout:
         # don't specify an entity-mapping object
         with pytest.raises(ValueError):
             layout = Layout(root, config, regex_search=True)
-
-    def test_write_files(self, tmpdir):
-        data_dir = join(dirname(__file__), 'data', '7t_trt')
-        config = join(dirname(__file__), 'specs', 'test.json')
-        layout = Layout(data_dir, config)
-        pat = join(str(tmpdir), 'sub-{subject}'
-                                '/sess-{session}'
-                                '/r-{run}'
-                                '/type-{type}'
-                                '/task-{task}.nii.gz')
-        layout.write_files(path_patterns=pat)
-        example_file = join(str(tmpdir), 'sub-02'
-                                         '/sess-2'
-                                         '/r-1'
-                                         '/type-bold'
-                                         '/task-rest_acq.nii.gz')
-        assert exists(example_file)
-
-    def test_write_contents_to_file(self):
-        contents = 'test'
-        data_dir = join(dirname(__file__), 'data', '7t_trt')
-        config = join(dirname(__file__), 'specs', 'test.json')
-        layout = Layout(data_dir, config)
-        entities = {'subject': 'Bob', 'session': '01'}
-        pat = join('sub-{subject}/sess-{session}/desc.txt')
-        layout.write_contents_to_file(entities, path_patterns=pat,
-                                      contents=contents)
-        target = join(data_dir, 'sub-Bob/sess-01/desc.txt')
-        assert exists(target)
-        with open(target) as f:
-            written = f.read()
-        assert written == contents
-        assert target in layout.files
-        shutil.rmtree(join(data_dir, 'sub-Bob'))
-
-    def test_write_contents_to_file_defaults(self):
-        contents = 'test'
-        data_dir = join(dirname(__file__), 'data', '7t_trt')
-        config = join(dirname(__file__), 'specs', 'test.json')
-        layout = Layout(data_dir, config)
-        entities = {'subject': 'Bob', 'session': '01', 'run': '1',
-                    'type': 'test', 'task': 'test', 'acquisition': 'test',
-                    'bval': 0}
-        layout.write_contents_to_file(entities, contents=contents)
-        target = join(data_dir, 'sub-Bob/ses-01/Bob011testtesttest0')
-        assert exists(target)
-        with open(target) as f:
-            written = f.read()
-        assert written == contents
-        assert target in layout.files
-        shutil.rmtree(join(data_dir, 'sub-Bob'))
