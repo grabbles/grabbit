@@ -1,10 +1,8 @@
-import json
 import logging
 import os
 import re
 import sys
 from grabbit.core import File, Layout
-from grabbit.external import six
 from grabbit.utils import splitext
 from os.path import join, dirname, exists, islink, isabs, isdir
 from six import string_types
