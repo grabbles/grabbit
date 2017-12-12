@@ -143,8 +143,10 @@ class Layout(object):
         A container for all the files and metadata found at the specified path.
         Args:
             path (str): The root path of the layout.
-            config (str): The path to the JSON config file that defines the
-            entities and paths for the current layout.
+            config (str, list): The path to the JSON config file that defines
+                the entities and paths for the current layout. If a list is
+                provided, treat as several paths to config files, creating
+                one master config with all of them merged (in order).
             index (str): Optional path to a saved index file. If a valid value
                 is passed, this index is used to populate Files and Entities,
                 and the normal indexing process (which requires scanning all
@@ -196,6 +198,13 @@ class Layout(object):
     def _load_config(self, config):
         if isinstance(config, six.string_types):
             config = json.load(open(config, 'r'))
+        elif isinstance(config, list):
+            merged = {}
+            for c in config:
+                if isinstance(c, six.string_types):
+                    c = json.load(open(c, 'r'))
+                merged.update(c)
+            config = merged
 
         for e in config['entities']:
             self.add_entity(**e)
@@ -206,6 +215,8 @@ class Layout(object):
                self.filtering_regex.get('exclude'):
                 raise ValueError("You can only define either include or "
                                  "exclude regex, not both.")
+
+        return config
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if

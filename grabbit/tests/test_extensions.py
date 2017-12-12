@@ -128,7 +128,11 @@ class TestWritableLayout:
         contents = 'test'
         data_dir = join(dirname(__file__), 'data', '7t_trt')
         config = join(dirname(__file__), 'specs', 'test.json')
-        layout = WritableLayout(data_dir, config=config)
+        layout = WritableLayout(data_dir, config=[config, {
+            'default_path_patterns': ['sub-{subject}/ses-{session}/{subject}'
+                                      '{session}{run}{type}{task}{acquisition}'
+                                      '{bval}']
+        }])
         entities = {'subject': 'Bob', 'session': '01', 'run': '1',
                     'type': 'test', 'task': 'test', 'acquisition': 'test',
                     'bval': 0}

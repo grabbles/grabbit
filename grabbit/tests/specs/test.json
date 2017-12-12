@@ -35,8 +35,5 @@
       "name": "bval",
       "pattern": "(.*\\.bval)"
     }
-  ],
-  "default_path_patterns": [
-    "sub-{subject}/ses-{session}/{subject}{session}{run}{type}{task}{acquisition}{bval}"
   ]
 }

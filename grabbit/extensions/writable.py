@@ -208,11 +208,13 @@ class WritableLayout(Layout):
         super(WritableLayout, self).__init__(path, **kwargs)
 
     def _load_config(self, config):
-        if isinstance(config, six.string_types):
-            config = json.load(open(config, 'r'))
-        super(WritableLayout, self)._load_config(config)
+        config = super(WritableLayout, self)._load_config(config)
         if 'default_path_patterns' in config:
-            self.path_patterns += config['default_path_patterns']
+            if isinstance(config['default_path_patterns'], list):
+                self.path_patterns += config['default_path_patterns']
+            else:
+                self.path_patterns += [config['default_path_patterns']]
+        return config
 
     def _make_file_object(self, root, f):
         ''' Initialize a new File oject from a directory and filename. Extend
