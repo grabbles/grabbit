@@ -138,8 +138,7 @@ class Entity(object):
 class Layout(object):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, entity_mapper=None,
-                 path_patterns=None):
+                 absolute_paths=True, regex_search=False, entity_mapper=None):
         """
         A container for all the files and metadata found at the specified path.
         Args:
