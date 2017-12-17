@@ -3,7 +3,7 @@ import os
 import re
 import sys
 from grabbit.core import File, Layout
-from grabbit.utils import splitext
+from grabbit.utils import splitext, listify
 from os.path import join, dirname, exists, islink, isabs, isdir
 from six import string_types
 
@@ -208,10 +208,7 @@ class WritableLayout(Layout):
     def _load_config(self, config):
         config = super(WritableLayout, self)._load_config(config)
         if 'default_path_patterns' in config:
-            if isinstance(config['default_path_patterns'], list):
-                self.path_patterns += config['default_path_patterns']
-            else:
-                self.path_patterns += [config['default_path_patterns']]
+            self.path_patterns += listify(config['default_path_patterns'])
         return config
 
     def _make_file_object(self, root, f):
