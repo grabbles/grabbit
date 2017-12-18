@@ -143,8 +143,10 @@ class Layout(object):
         A container for all the files and metadata found at the specified path.
         Args:
             path (str): The root path of the layout.
-            config (str): The path to the JSON config file that defines the
-            entities and paths for the current layout.
+            config (str, list): The path to the JSON config file that defines
+                the entities and paths for the current layout. If a list is
+                provided, treat as several paths to config files, creating
+                one master config with all of them merged (in order).
             index (str): Optional path to a saved index file. If a valid value
                 is passed, this index is used to populate Files and Entities,
                 and the normal indexing process (which requires scanning all
@@ -196,6 +198,13 @@ class Layout(object):
     def _load_config(self, config):
         if isinstance(config, six.string_types):
             config = json.load(open(config, 'r'))
+        elif isinstance(config, list):
+            merged = {}
+            for c in config:
+                if isinstance(c, six.string_types):
+                    c = json.load(open(c, 'r'))
+                merged.update(c)
+            config = merged
 
         for e in config['entities']:
             self.add_entity(**e)
@@ -206,6 +215,8 @@ class Layout(object):
                self.filtering_regex.get('exclude'):
                 raise ValueError("You can only define either include or "
                                  "exclude regex, not both.")
+
+        return config
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if
@@ -290,7 +301,7 @@ class Layout(object):
             # Exclude directories that match exclude regex from further search
             full_dirs = [os.path.join(root, d) for d in directories]
             full_dirs = filter(self._check_inclusions, full_dirs)
-            directories[:] = [os.path.split(d)[1] for d in
+            directories[:] = [split(d)[1] for d in
                               filter(self._validate_dir, full_dirs)]
 
             # self._index_filenames(filenames)
@@ -373,6 +384,7 @@ class Layout(object):
                 'dir': returns a list of directories.
                 'id': returns a list of unique IDs. Must be used together with
                     a valid target.
+                'obj': returns a list of matching File objects.
             target (str): The name of the target entity to get results for
                 (if return_type is 'dir' or 'id').
             extensions (str, list): One or more file extensions to filter on.
@@ -406,6 +418,9 @@ class Layout(object):
         if return_type == 'tuple':
             result = [r.as_named_tuple() for r in result]
             return natural_sort(result, field='filename')
+
+        if return_type.startswith('obj'):
+            return result
 
         else:
             if target is None:
