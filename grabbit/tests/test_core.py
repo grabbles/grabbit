@@ -59,6 +59,11 @@ class TestFile:
         assert not file._matches(entities={'task': 'rest', 'run': 4})
         assert not file._matches(entities={'task': 'st'})
         assert file._matches(entities={'task': 'st'}, regex_search=True)
+        # With list of matches
+        assert not file._matches(entities={'task': ['A', 'B', 'C']})
+        assert file._matches(entities={'task': ['A', 'B', 'rest']})
+        assert file._matches(entities={'task': ['A', 'B', 'st']},
+                             regex_search=True)
 
     def test_named_tuple(self, file):
         file.entities = {'attrA': 'apple', 'attrB': 'banana'}

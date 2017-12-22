@@ -3,7 +3,7 @@ import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
-from grabbit.utils import natural_sort
+from grabbit.utils import natural_sort, listify
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
 
@@ -41,17 +41,28 @@ class File(object):
             extensions = '(' + '|'.join(extensions) + ')$'
             if re.search(extensions, self.path) is None:
                 return False
+
         if entities is not None:
+
             for name, val in entities.items():
-                patt = '%s' % val
-                if isinstance(val, (int, float)):
-                    # allow for leading zeros if a number was specified
-                    # regardless of regex_search
-                    patt = '0*' + patt
-                if not regex_search:
-                    patt = '^%s$' % patt
-                if name not in self.entities or \
-                        re.search(patt, self.entities[name]) is None:
+
+                if name not in self.entities:
+                    return False
+
+                def make_patt(x):
+                    patt = '%s' % x
+                    if isinstance(x, (int, float)):
+                        # allow for leading zeros if a number was specified
+                        # regardless of regex_search
+                        patt = '0*' + patt
+                    if not regex_search:
+                        patt = '^%s$' % patt
+                    return patt
+
+                ent_patts = [make_patt(x) for x in listify(val)]
+                patt = '|'.join(ent_patts)
+
+                if re.search(patt, self.entities[name]) is None:
                     return False
         return True
 
