@@ -298,3 +298,7 @@ class TestLayout:
         # don't specify an entity-mapping object
         with pytest.raises(ValueError):
             layout = Layout(root, config, regex_search=True)
+
+    def test_merge_layouts(self, layout):
+        # TODO
+        pass

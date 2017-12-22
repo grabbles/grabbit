@@ -3,7 +3,7 @@ import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
-from grabbit.utils import natural_sort
+from grabbit.utils import natural_sort, listify
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
 
@@ -573,3 +573,28 @@ class Layout(object):
         matches = [m.path if return_type == 'file' else m.as_named_tuple()
                    for m in matches]
         return matches if all_ else matches[0] if matches else None
+
+
+def merge_layouts(layouts):
+    ''' Utility function for merging multiple layouts.for
+    Args:
+        layouts (list): A list of BIDSLayout instance to merge.
+    Returns:
+        A BIDSLayout containing merged files and entities.
+    Notes:
+        Layouts will be merged in the order of the elements in the list. I.e.,
+        the first Layout will be updated with all values in the 2nd Layout,
+        then the result will be updated with values from the 3rd Layout, etc.
+        This means that order matters: in the event of entity or filename
+        conflicts, later layouts will take precedence.
+    '''
+    for l in layouts[1:]:
+        layouts[0].files.update(l.files)
+
+        for k, v in l.entities.items():
+            if k not in layouts[0].entities:
+                layouts[0].entities.update(v)
+            else:
+                layouts[0].entities[k].files.update(v.files)
+
+    return layouts[0]
