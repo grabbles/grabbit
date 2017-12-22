@@ -588,13 +588,15 @@ def merge_layouts(layouts):
         This means that order matters: in the event of entity or filename
         conflicts, later layouts will take precedence.
     '''
+    layout = layouts[0].clone()
+
     for l in layouts[1:]:
-        layouts[0].files.update(l.files)
+        layout.files.update(l.files)
 
         for k, v in l.entities.items():
-            if k not in layouts[0].entities:
-                layouts[0].entities.update(v)
+            if k not in layout.entities:
+                layout.entities[k] = v
             else:
-                layouts[0].entities[k].files.update(v.files)
+                layout.entities[k].files.update(v.files)
 
-    return layouts[0]
+    return layout
