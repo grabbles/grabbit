@@ -6,6 +6,7 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, listify
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
+from copy import deepcopy
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -102,6 +103,17 @@ class Entity(object):
         for i in self.unique():
             yield(i)
 
+    def __deepcopy__(self, memo):
+
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        for k, v in self.__dict__.items():
+            new_val = getattr(self, k) if k == 'regex' else deepcopy(v, memo)
+            setattr(result, k, new_val)
+        return result
+
     def matches(self, f):
         """
         Determine whether the passed file matches the Entity and update the
@@ -194,7 +206,6 @@ class Layout(object, metaclass=LayoutMetaclass):
                 entity mapper (implying that the user has subclassed Layout).
         """
 
-        print(path)
         self.root = abspath(path) if absolute_paths else path
         self.entities = OrderedDict()
         self.files = {}
@@ -590,6 +601,9 @@ class Layout(object, metaclass=LayoutMetaclass):
         matches = [m.path if return_type == 'file' else m.as_named_tuple()
                    for m in matches]
         return matches if all_ else matches[0] if matches else None
+
+    def clone(self):
+        return deepcopy(self)
 
 
 def merge_layouts(layouts):
