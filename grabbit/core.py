@@ -135,7 +135,23 @@ class Entity(object):
         return len(self.files) if files else len(self.unique())
 
 
-class Layout(object):
+class LayoutMetaclass(type):
+    ''' Metaclass for Layout; used to enable merging of multiple Layouts into
+    a single Layout when a list of paths is passed as input.
+    '''
+    def __call__(cls, path, *args, **kwargs):
+
+        paths = listify(path)
+        if len(paths) == 1:
+            return super(LayoutMetaclass, cls).__call__(path, *args, **kwargs)
+        layouts = []
+        for p in paths:
+            layout = super(LayoutMetaclass, cls).__call__(p, *args, **kwargs)
+            layouts.append(layout)
+        return merge_layouts(layouts)
+
+
+class Layout(object, metaclass=LayoutMetaclass):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
                  absolute_paths=True, regex_search=False, entity_mapper=None):
@@ -178,6 +194,7 @@ class Layout(object):
                 entity mapper (implying that the user has subclassed Layout).
         """
 
+        print(path)
         self.root = abspath(path) if absolute_paths else path
         self.entities = OrderedDict()
         self.files = {}
@@ -576,9 +593,10 @@ class Layout(object):
 
 
 def merge_layouts(layouts):
-    ''' Utility function for merging multiple layouts.for
+    ''' Utility function for merging multiple layouts.
+
     Args:
-        layouts (list): A list of BIDSLayout instance to merge.
+        layouts (list): A list of BIDSLayout instances to merge.
     Returns:
         A BIDSLayout containing merged files and entities.
     Notes:
