@@ -163,7 +163,7 @@ class LayoutMetaclass(type):
         return merge_layouts(layouts)
 
 
-class Layout(object, metaclass=LayoutMetaclass):
+class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
                  absolute_paths=True, regex_search=False, entity_mapper=None):
