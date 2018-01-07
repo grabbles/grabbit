@@ -322,8 +322,8 @@ class TestLayout:
                  'filtering_regex', 'entity_mapper']
         for a in attrs:
             assert getattr(bids_layout, a) == getattr(lc, a)
-        assert bids_layout.files.keys() == lc.files.keys()
-        assert bids_layout.entities.keys() == lc.entities.keys()
+        assert set(bids_layout.files.keys()) == set(lc.files.keys())
+        assert set(bids_layout.entities.keys()) == set(lc.entities.keys())
 
 
 def test_merge_layouts(bids_layout, stamp_layout):
