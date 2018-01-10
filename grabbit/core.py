@@ -6,6 +6,7 @@ from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, listify
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
+from copy import deepcopy
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -113,6 +114,17 @@ class Entity(object):
         for i in self.unique():
             yield(i)
 
+    def __deepcopy__(self, memo):
+
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        for k, v in self.__dict__.items():
+            new_val = getattr(self, k) if k == 'regex' else deepcopy(v, memo)
+            setattr(result, k, new_val)
+        return result
+
     def matches(self, f):
         """
         Determine whether the passed file matches the Entity and update the
@@ -146,7 +158,23 @@ class Entity(object):
         return len(self.files) if files else len(self.unique())
 
 
-class Layout(object):
+class LayoutMetaclass(type):
+    ''' Metaclass for Layout; used to enable merging of multiple Layouts into
+    a single Layout when a list of paths is passed as input.
+    '''
+    def __call__(cls, path, *args, **kwargs):
+
+        paths = listify(path)
+        if len(paths) == 1:
+            return super(LayoutMetaclass, cls).__call__(path, *args, **kwargs)
+        layouts = []
+        for p in paths:
+            layout = super(LayoutMetaclass, cls).__call__(p, *args, **kwargs)
+            layouts.append(layout)
+        return merge_layouts(layouts)
+
+
+class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
                  absolute_paths=True, regex_search=False, entity_mapper=None):
@@ -584,3 +612,34 @@ class Layout(object):
         matches = [m.path if return_type == 'file' else m.as_named_tuple()
                    for m in matches]
         return matches if all_ else matches[0] if matches else None
+
+    def clone(self):
+        return deepcopy(self)
+
+
+def merge_layouts(layouts):
+    ''' Utility function for merging multiple layouts.
+
+    Args:
+        layouts (list): A list of BIDSLayout instances to merge.
+    Returns:
+        A BIDSLayout containing merged files and entities.
+    Notes:
+        Layouts will be merged in the order of the elements in the list. I.e.,
+        the first Layout will be updated with all values in the 2nd Layout,
+        then the result will be updated with values from the 3rd Layout, etc.
+        This means that order matters: in the event of entity or filename
+        conflicts, later layouts will take precedence.
+    '''
+    layout = layouts[0].clone()
+
+    for l in layouts[1:]:
+        layout.files.update(l.files)
+
+        for k, v in l.entities.items():
+            if k not in layout.entities:
+                layout.entities[k] = v
+            else:
+                layout.entities[k].files.update(v.files)
+
+    return layout
