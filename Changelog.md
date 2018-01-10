@@ -1,3 +1,9 @@
+0.1.0 (January 10, 2018)
+This release adds several new features. In the interest of making the .PATCH version number meaningful, it also bumps the version to 0.1.0. New features:
+- Enables flexible file path construction and writing (thanks to @qmac)
+- Adds a Layout merging utility and enables initialization of a compound Layout created by passing in multiple project roots
+- Allows lists to be passed to any argument when matching files (e.g. via .get())
+
 0.0.8 (October 2, 2017)
 This release adds several new features:
 - Experimental support for HDFS (thanks to @ValHayot)
