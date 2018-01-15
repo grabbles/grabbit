@@ -51,8 +51,8 @@ def build_path(path_patterns, entities):
         path_patterns (str, list): One or more filename patterns to write
             the file to. Entities should be represented by the name
             surrounded by curly braces. Optional portions of the patterns
-            should be denoted by double curly braces.
-            Pattern example: 'sub-{subject}/{{var-{name}}}/{id}.csv'
+            should be denoted by square braces.
+            Pattern example: 'sub-{subject}/[var-{name}]/{id}.csv'
             Example result: 'sub-01/var-SES/1045.csv'
         entities (dict): A dictionary mapping entity names to entity values.
 
@@ -197,7 +197,10 @@ class WritableLayout(Layout):
 
     def __init__(self, path, path_patterns=None, **kwargs):
         """
-        path_patterns (str, list): One or more filename patterns to use
+        Represents a layout with file writing capabilities
+
+        Args:
+            path_patterns (str, list): One or more filename patterns to use
                 as a default path pattern for this layout's files. See the
                 build_path() method of the File class for more information.
                 Can also be specified in the config file.
