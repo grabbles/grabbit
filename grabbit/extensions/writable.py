@@ -85,8 +85,7 @@ def build_path(path_patterns, entities):
 def write_contents_to_file(path, contents=None, link_to=None,
                            content_mode='text', root=None, conflicts='fail'):
     """
-    Uses provided filename patterns to write contents to a new path, given
-    a corresponding entity map.
+    Uses provided filename patterns to write contents to a new path.
 
     Args:
         path (str): Destination path of the desired contents.
@@ -258,6 +257,28 @@ class WritableLayout(Layout):
                                contents=None, link_to=None,
                                content_mode='text', conflicts='fail'):
         """
+        Uses provided filename patterns, defaulting to this Layout's path_patterns,
+        and a provided entity map to write contents to a new path.
+
+        Args:
+            entities (dict): A dictionary mapping entity names to entity values.
+            path_patterns (list): One or more filename patterns to use
+                generate output paths. See the build_path() method for more
+                information. Can also be specified in the config file.
+            contents (str): Raw text or binary encoded string of contents to write
+                to the new path.
+            link_to (str): Optional path with which to create a symbolic link to.
+                Used as an alternative to and takes priority over the contents
+                argument.
+            content_mode (str): Either 'text' or 'binary' to indicate the writing
+                mode for the new file. Only relevant if contents is provided.
+            root (str): Optional root directory that all patterns are relative
+                to. Defaults to current working directory.
+            conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
+                that defines the desired action when the output path already
+                exists. 'fail' raises an exception; 'skip' does nothing;
+                'overwrite' overwrites the existing file; 'append' adds a suffix
+                to each file copy, starting with 1. Default is 'fail'.
         """
         if not path_patterns:
             path_patterns = self.path_patterns
