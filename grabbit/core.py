@@ -166,7 +166,7 @@ class LayoutMetaclass(type):
 
         paths = listify(path)
         if len(paths) == 1:
-            return super(LayoutMetaclass, cls).__call__(path, *args, **kwargs)
+            return super(LayoutMetaclass, cls).__call__(paths[0], *args, **kwargs)
         layouts = []
         for p in paths:
             layout = super(LayoutMetaclass, cls).__call__(p, *args, **kwargs)
@@ -237,13 +237,16 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def _load_config(self, config):
         if isinstance(config, six.string_types):
             config = json.load(open(config, 'r'))
+        ### TODO: Merge deeply?
         elif isinstance(config, list):
             merged = {}
             for c in config:
                 if isinstance(c, six.string_types):
                     c = json.load(open(c, 'r'))
                 merged.update(c)
+            assert 0
             config = merged
+
 
         for e in config['entities']:
             self.add_entity(**e)
@@ -616,7 +619,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def clone(self):
         return deepcopy(self)
 
-
+### TODO: Merging with different configs, does it make sense? Not all files match to all entities
 def merge_layouts(layouts):
     ''' Utility function for merging multiple layouts.
 
