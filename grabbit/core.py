@@ -175,7 +175,8 @@ Tag = namedtuple('Tag', ['entity', 'value'])
 class Entity(object):
 
     def __init__(self, name, pattern=None, domain=None, mandatory=False,
-                 directory=None, map_func=None, dtype=None, **kwargs):
+                 directory=None, map_func=None, dtype=None, aliases=None,
+                 **kwargs):
         """
         Represents a single entity defined in the JSON config.
 
@@ -184,18 +185,19 @@ class Entity(object):
             pattern (str): A regex pattern used to match against file names.
                 Must define at least one group, and only the first group is
                 kept as the match.
+            domain (Domain): The Domain the Entity belongs to.
             mandatory (bool): If True, every File _must_ match this entity.
             directory (str): Optional pattern defining a directory associated
                 with the entity.
             map_func (callable): Optional callable used to extract the Entity's
                 value from the passed string (instead of trying to match on the
                 defined .pattern).
-            domain (Domain): The Domain the Entity belongs to.
-            kwargs (dict): Additional keyword arguments.
             dtype (str): The optional data type of the Entity values. Must be
                 one of 'int', 'float', 'bool', or 'str'. If None, no type
                 enforcement will be attempted, which means the dtype of the
                 value may be unpredictable.
+            aliases (str or list): Alternative names for the entity.
+            kwargs (dict): Additional keyword arguments.
         """
         if pattern is None and map_func is None:
             raise ValueError("Invalid specification for Entity '%s'; no "
@@ -219,7 +221,10 @@ class Entity(object):
 
         self.files = {}
         self.regex = re.compile(pattern) if pattern is not None else None
-        self.id = '.'.join([getattr(domain, 'name', ''), name])
+        domain_name = getattr(domain, 'name', '')
+        self.id = '.'.join([domain_name, name])
+        self.aliases = ['.'.join([domain_name, alias])
+                        for alias in listify(aliases)]
 
     def __iter__(self):
         for i in self.unique():
@@ -698,6 +703,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         if ent.directory is not None:
             ent.directory = ent.directory.replace('{{root}}', self.root)
         self.entities[ent.id] = ent
+        for alias in ent.aliases:
+            self.entities[alias] = ent
         if self.dynamic_getters:
             func = partial(getattr(self, 'get'), target=ent.name,
                            return_type='id')
