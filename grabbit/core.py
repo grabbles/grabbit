@@ -650,10 +650,31 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def clone(self):
         return deepcopy(self)
 
-    def build_path(self, entities, path_patterns=None):
+    def build_path(self, source, path_patterns=None):
+        ''' Constructs a target filename for a file or dictionary of entities.
+
+        Args:
+            source (str, File, dict): The source data to use to construct the
+                new file path. Must be one of:
+                - A File object
+                - A string giving the path of a File contained within the
+                  current Layout.
+                - A dict of entities, with entity names in keys and values in
+                  values
+            path_patterns (list): Optional path patterns to use to construct
+                the new file path. If None, the Layout-defined patterns will
+                be used.
+        '''
+        if isinstance(source, six.string_types):
+            source = self.files[source]
+
+        if isinstance(source, File):
+            source = source.entities
+
         if path_patterns is None:
             path_patterns = self.path_patterns
-        return build_path(entities, path_patterns)
+
+        return build_path(source, path_patterns)
 
     def copy_files(self, files=None, path_patterns=None, symbolic_links=True,
                    root=None, conflicts='fail', **get_selectors):

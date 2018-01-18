@@ -13,6 +13,12 @@ def writable_file(tmpdir):
     fn.write('###')
     return File(os.path.join(str(fn)))
 
+@pytest.fixture
+def layout():
+    data_dir = join(dirname(__file__), 'data', '7t_trt')
+    config = join(dirname(__file__), 'specs', 'test.json')
+    layout = Layout(data_dir, config=config)
+    return layout
 
 class TestWritableFile:
 
@@ -89,10 +95,8 @@ class TestWritableFile:
 
 class TestWritableLayout:
 
-    def test_write_files(self, tmpdir):
-        data_dir = join(dirname(__file__), 'data', '7t_trt')
-        config = join(dirname(__file__), 'specs', 'test.json')
-        layout = Layout(data_dir, config=config)
+    def test_write_files(self, tmpdir, layout):
+
         pat = join(str(tmpdir), 'sub-{subject}'
                                 '/sess-{session}'
                                 '/r-{run}'
@@ -106,11 +110,9 @@ class TestWritableLayout:
                                          '/task-rest_acq.nii.gz')
         assert exists(example_file)
 
-    def test_write_contents_to_file(self):
+    def test_write_contents_to_file(self, layout):
         contents = 'test'
         data_dir = join(dirname(__file__), 'data', '7t_trt')
-        config = join(dirname(__file__), 'specs', 'test.json')
-        layout = Layout(data_dir, config=config)
         entities = {'subject': 'Bob', 'session': '01'}
         pat = join('sub-{subject}/sess-{session}/desc.txt')
         layout.write_contents_to_file(entities, path_patterns=pat,
@@ -123,7 +125,7 @@ class TestWritableLayout:
         assert target in layout.files
         shutil.rmtree(join(data_dir, 'sub-Bob'))
 
-    def test_write_contents_to_file_defaults(self):
+    def test_write_contents_to_file_defaults(self, layout):
         contents = 'test'
         data_dir = join(dirname(__file__), 'data', '7t_trt')
         config = join(dirname(__file__), 'specs', 'test.json')
@@ -143,3 +145,17 @@ class TestWritableLayout:
         assert written == contents
         assert target in layout.files
         shutil.rmtree(join(data_dir, 'sub-Bob'))
+
+    def test_build_file_from_layout(self, tmpdir, layout):
+        entities = {'subject': 'Bob', 'session': '01', 'run': '1'}
+        pat = join(str(tmpdir), 'sub-{subject}'
+                        '/sess-{session}'
+                        '/r-{run}.nii.gz')
+        path = layout.build_path(entities, path_patterns=pat)
+        assert path == join(str(tmpdir), 'sub-Bob/sess-01/r-1.nii.gz')
+
+        data_dir = join(dirname(__file__), 'data', '7t_trt')
+        filename = 'sub-04_ses-1_task-rest_acq-fullbrain_run-1_physio.tsv.gz'
+        file = join(data_dir, 'sub-04', 'ses-1', 'func', filename)
+        path = layout.build_path(file, path_patterns=pat)
+        assert path.endswith('sub-04/sess-1/r-1.nii.gz')
