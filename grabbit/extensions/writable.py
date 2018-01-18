@@ -40,7 +40,7 @@ def replace_entities(entities, pattern):
         return None
 
 
-def build_path(entities, path_patterns):
+def build_path(entities, path_patterns, strict=False):
     """
     Constructs a path given a set of entities and a list of potential
     filename patterns to use.
@@ -53,6 +53,9 @@ def build_path(entities, path_patterns):
             should be denoted by square brackets.
             Pattern example: 'sub-{subject}/[var-{name}/]{id}.csv'
             Example result: 'sub-01/var-SES/1045.csv'
+        strict (bool): If True, all entities must be matched inside a pattern
+            in order to be a valid match. If False, extra entities will be
+            ignored so long as all mandatory entities are found.
 
     Returns:
         A constructed path for this file based on the provided patterns.
@@ -61,6 +64,11 @@ def build_path(entities, path_patterns):
         path_patterns = [path_patterns]
 
     for pattern in path_patterns:
+        # If strict, all entities must be contained in the pattern
+        if strict:
+            defined = re.findall('\{(.*?)\}', pattern)
+            if set(entities.keys()) - set(defined):
+                continue
         # Iterate through the provided path patterns
         new_path = pattern
         optional_patterns = re.findall('\[(.*?)\]', pattern)

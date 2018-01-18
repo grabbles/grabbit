@@ -650,7 +650,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def clone(self):
         return deepcopy(self)
 
-    def build_path(self, source, path_patterns=None):
+    def build_path(self, source, path_patterns=None, strict=False):
         ''' Constructs a target filename for a file or dictionary of entities.
 
         Args:
@@ -664,6 +664,9 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             path_patterns (list): Optional path patterns to use to construct
                 the new file path. If None, the Layout-defined patterns will
                 be used.
+            strict (bool): If True, all entities must be matched inside a
+                pattern in order to be a valid match. If False, extra entities
+                will be ignored so long as all mandatory entities are found.
         '''
         if isinstance(source, six.string_types):
             source = self.files[source]
@@ -674,7 +677,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         if path_patterns is None:
             path_patterns = self.path_patterns
 
-        return build_path(source, path_patterns)
+        return build_path(source, path_patterns, strict)
 
     def copy_files(self, files=None, path_patterns=None, symbolic_links=True,
                    root=None, conflicts='fail', **get_selectors):
@@ -711,7 +714,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def write_contents_to_file(self, entities, path_patterns=None,
                                contents=None, link_to=None,
-                               content_mode='text', conflicts='fail'):
+                               content_mode='text', conflicts='fail',
+                               strict=False):
         """
         Write arbitrary data to a file defined by the passed entities and
         path patterns.
@@ -730,11 +734,14 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             exists. 'fail' raises an exception; 'skip' does nothing;
             'overwrite' overwrites the existing file; 'append' adds a suffix
             to each file copy, starting with 1. Default is 'fail'.
+            strict (bool): If True, all entities must be matched inside a
+                pattern in order to be a valid match. If False, extra entities
+                will be ignored so long as all mandatory entities are found.
 
         """
         if not path_patterns:
             path_patterns = self.path_patterns
-        path = build_path(entities, path_patterns)
+        path = build_path(entities, path_patterns, strict)
         write_contents_to_file(path, contents=contents, link_to=link_to,
                                content_mode=content_mode, conflicts=conflicts,
                                root=self.root)

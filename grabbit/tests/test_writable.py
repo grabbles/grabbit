@@ -47,6 +47,16 @@ class TestWritableFile:
         target = join(writable_file.dirname, 'rest/r-2.nii.gz')
         assert build_path(writable_file.entities, pats) == target
 
+    def test_strict_build_path(self):
+
+        # Test with strict matching--should fail
+        pats = ['[{session}/]{task}/r-{run}.nii.gz',
+                't-{task}/{subject}-{run}.nii.gz']
+        entities = {'subject': 1, 'task': "A", 'run': 2}
+        assert build_path(entities, pats, True)
+        entities = {'subject': 1, 'task': "A", 'age': 22}
+        assert not build_path(entities, pats, True)
+
     def test_build_file(self, writable_file, tmpdir, caplog):
         writable_file.entities = {'task': 'rest', 'run': '2', 'subject': '3'}
 
