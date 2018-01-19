@@ -31,7 +31,10 @@ def replace_entities(entities, pattern):
     new_path = pattern
     for ent in ents:
         valid_values = re.search('<(.*?)>', ent)
-        valid_values = valid_values[0] if valid_values else ''
+        if valid_values:
+            valid_values = ent[valid_values.start():valid_values.end()]
+        else:
+            valid_values = ''
         ent_name = ent.replace(valid_values, '')
         if ent_name in entities:
             ent_val = str(entities[ent_name])
