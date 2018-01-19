@@ -91,7 +91,8 @@ def build_path(entities, path_patterns, strict=False):
 def write_contents_to_file(path, contents=None, link_to=None,
                            content_mode='text', root=None, conflicts='fail'):
     """
-    Uses provided filename patterns to write contents to a new path.
+    Uses provided filename patterns to write contents to a new path, given
+    a corresponding entity map.
 
     Args:
         path (str): Destination path of the desired contents.
