@@ -18,9 +18,10 @@ def replace_entities(entities, pattern):
         entities (dict): A dictionary mapping entity names to entity values.
         pattern (str): A path pattern that contains entity names denoted
             by curly braces. Optional portions denoted by square braces.
-            Accepted entity values denoted within angle brackets.
             For example: 'sub-{subject}/[var-{name}/]{id}.csv'
-            or 'sub-{subject<01|02>}/{task}.csv'
+            Accepted entity values, using regex matching, denoted within angle
+            brackets.
+            For example: 'sub-{subject<01|02>}/{task}.csv'
 
     Returns:
         A new string with the entity values inserted where entity names
