@@ -47,6 +47,27 @@ class TestWritableFile:
         target = join(writable_file.dirname, 'rest/r-2.nii.gz')
         assert build_path(writable_file.entities, pats) == target
 
+        # Pattern with conditional values
+        pats = ['{task<func|acq>}/r-{run}.nii.gz',
+                't-{task}/{subject}-{run}.nii.gz']
+        pats = [join(writable_file.dirname, p) for p in pats]
+        target = join(writable_file.dirname, 't-rest/3-2.nii.gz')
+        assert build_path(writable_file.entities, pats) == target
+
+        # Pattern with valid conditional values
+        pats = ['{task<func|rest>}/r-{run}.nii.gz',
+                't-{task}/{subject}-{run}.nii.gz']
+        pats = [join(writable_file.dirname, p) for p in pats]
+        target = join(writable_file.dirname, 'rest/r-2.nii.gz')
+        assert build_path(writable_file.entities, pats) == target
+
+        # Pattern with optional entity with conditional values
+        pats = ['[{task<func|acq>}/]r-{run}.nii.gz',
+                't-{task}/{subject}-{run}.nii.gz']
+        pats = [join(writable_file.dirname, p) for p in pats]
+        target = join(writable_file.dirname, 'r-2.nii.gz')
+        assert build_path(writable_file.entities, pats) == target
+
     def test_strict_build_path(self):
 
         # Test with strict matching--should fail
@@ -107,7 +128,7 @@ class TestWritableLayout:
 
     def test_write_files(self, tmpdir, layout):
 
-        pat = join(str(tmpdir), 'sub-{subject}'
+        pat = join(str(tmpdir), 'sub-{subject<01|02>}'
                                 '/sess-{session}'
                                 '/r-{run}'
                                 '/type-{type}'
@@ -118,7 +139,27 @@ class TestWritableLayout:
                                          '/r-1'
                                          '/type-bold'
                                          '/task-rest_acq.nii.gz')
+        example_file2 = join(str(tmpdir), 'sub-04'
+                                          '/sess-2'
+                                          '/r-1'
+                                          '/type-bold'
+                                          '/task-rest_acq.nii.gz')
         assert exists(example_file)
+        assert not exists(example_file2)
+
+        pat = join(str(tmpdir), 'sub-{subject}'
+                                '/sess-{session}'
+                                '/r-{run}'
+                                '/type-{type}'
+                                '/task-{task}.nii.gz')
+        layout.copy_files(path_patterns=pat, conflicts='overwrite')
+        example_file = join(str(tmpdir), 'sub-02'
+                                         '/sess-2'
+                                         '/r-1'
+                                         '/type-bold'
+                                         '/task-rest_acq.nii.gz')
+        assert exists(example_file)
+        assert exists(example_file2)
 
     def test_write_contents_to_file(self, layout):
         contents = 'test'

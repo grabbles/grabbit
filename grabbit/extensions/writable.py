@@ -17,22 +17,37 @@ def replace_entities(entities, pattern):
     Args:
         entities (dict): A dictionary mapping entity names to entity values.
         pattern (str): A path pattern that contains entity names denoted
-            by square brackets.
+            by curly braces. Optional portions denoted by square braces.
+            Accepted entity values denoted within angle brackets.
             For example: 'sub-{subject}/[var-{name}/]{id}.csv'
+            or 'sub-{subject<01|02>}/{task}.csv'
 
     Returns:
         A new string with the entity values inserted where entity names
         were denoted in the provided pattern.
     """
-    new_path = pattern
     ents = re.findall('\{(.*?)\}', pattern)
     ents_matched = True
+    new_path = pattern
     for ent in ents:
-        if ent in entities:
-            new_path = new_path.replace('{%s}' % ent, str(entities[ent]))
+        valid_values = re.search('<(.*?)>', ent)
+        valid_values = valid_values[0] if valid_values else ''
+        ent_name = ent.replace(valid_values, '')
+        if ent_name in entities:
+            ent_val = str(entities[ent_name])
+            if valid_values:
+                # Check if entity value matches valid_values regex
+                valid_values = re.compile(valid_values[1:-1])
+                if not valid_values.match(ent_val):
+                    ents_matched = False
+                    break
+                new_path = new_path.replace('{%s}' % ent, ent_val)
+            else:
+                new_path = new_path.replace('{%s}' % ent, ent_val)
         else:
             # An entity in the pattern is not an entity for this file
             ents_matched = False
+            break
 
     if ents_matched:
         return new_path
