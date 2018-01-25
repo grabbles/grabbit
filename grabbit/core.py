@@ -563,7 +563,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                               "as a pandas DataFrame when you don't have "
                               "pandas installed? Eh? Eh?")
         if kwargs:
-            files = self.get(return_type='file', **kwargs)
+            files = self.get(return_type='obj', **kwargs)
         else:
             files = self.files.values()
         data = pd.DataFrame.from_records([f.entities for f in files])
