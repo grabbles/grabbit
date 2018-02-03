@@ -85,7 +85,7 @@ def build_path(entities, path_patterns, strict=False):
     for pattern in path_patterns:
         # If strict, all entities must be contained in the pattern
         if strict:
-            defined = re.findall('\{(.*?)\}', pattern)
+            defined = re.findall('\{(.*?)(?:<[^>]+>)?\}', pattern)
             if set(entities.keys()) - set(defined):
                 continue
         # Iterate through the provided path patterns
