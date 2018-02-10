@@ -63,7 +63,7 @@ class File(object):
                 ent_patts = [make_patt(x) for x in listify(val)]
                 patt = '|'.join(ent_patts)
 
-                if re.search(patt, self.entities[name]) is None:
+                if re.search(patt, str(self.entities[name])) is None:
                     return False
         return True
 
