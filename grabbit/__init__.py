@@ -1,6 +1,5 @@
 from .core import File, Entity, Layout, merge_layouts
-from .extensions import (replace_entities, build_path, write_contents_to_file,
-                         WritableFile, WritableLayout)
+from .extensions import (replace_entities, build_path, write_contents_to_file)
 
 __all__ = [
     'File',
@@ -9,7 +8,5 @@ __all__ = [
     'replace_entities',
     'build_path',
     'write_contents_to_file',
-    'WritableFile',
-    'WritableLayout',
     'merge_layouts'
 ]

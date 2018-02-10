@@ -4,6 +4,7 @@ import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, listify
+from grabbit.extensions.writable import build_path, write_contents_to_file
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
 from copy import deepcopy
@@ -75,6 +76,30 @@ class File(object):
         _File = namedtuple('File', 'filename ' +
                            ' '.join(self.entities.keys()))
         return _File(filename=self.path, **self.entities)
+
+    def copy(self, path_patterns, symbolic_link=False, root=None,
+             conflicts='fail'):
+        ''' Copy the contents of a file to a new location, with target
+        filename defined by the current File's entities and the specified
+        path_patterns. '''
+        new_filename = build_path(self.entities, path_patterns)
+        if not new_filename:
+            return None
+
+        if new_filename[-1] == os.sep:
+            new_filename += self.filename
+
+        if symbolic_link:
+            contents = None
+            link_to = self.path
+        else:
+            with open(self.path, 'r') as f:
+                contents = f.read()
+            link_to = None
+
+        write_contents_to_file(new_filename, contents=contents,
+                               link_to=link_to, content_mode='text', root=root,
+                               conflicts=conflicts)
 
 
 class Entity(object):
@@ -177,9 +202,11 @@ class LayoutMetaclass(type):
 class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
-                 absolute_paths=True, regex_search=False, entity_mapper=None):
+                 absolute_paths=True, regex_search=False, entity_mapper=None,
+                 path_patterns=None):
         """
         A container for all the files and metadata found at the specified path.
+
         Args:
             path (str): The root path of the layout.
             config (str, list): The path to the JSON config file that defines
@@ -215,6 +242,9 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                     Alternatively, the special string "self" can be passed, in
                 which case the current Layout instance will be used as the
                 entity mapper (implying that the user has subclassed Layout).
+            path_patterns (str, list): One or more filename patterns to use
+                as a default path pattern for this layout's files.  Can also
+                be specified in the config file.
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -225,6 +255,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         self.regex_search = regex_search
         self.filtering_regex = {}
         self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
+        self.path_patterns = path_patterns if path_patterns else []
 
         if config is not None:
             self._load_config(config)
@@ -254,6 +285,9 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                self.filtering_regex.get('exclude'):
                 raise ValueError("You can only define either include or "
                                  "exclude regex, not both.")
+
+        if 'default_path_patterns' in config:
+            self.path_patterns += listify(config['default_path_patterns'])
 
         return config
 
@@ -529,7 +563,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                               "as a pandas DataFrame when you don't have "
                               "pandas installed? Eh? Eh?")
         if kwargs:
-            files = self.get(return_type='file', **kwargs)
+            files = self.get(return_type='obj', **kwargs)
         else:
             files = self.files.values()
         data = pd.DataFrame.from_records([f.entities for f in files])
@@ -615,6 +649,103 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def clone(self):
         return deepcopy(self)
+
+    def build_path(self, source, path_patterns=None, strict=False):
+        ''' Constructs a target filename for a file or dictionary of entities.
+
+        Args:
+            source (str, File, dict): The source data to use to construct the
+                new file path. Must be one of:
+                - A File object
+                - A string giving the path of a File contained within the
+                  current Layout.
+                - A dict of entities, with entity names in keys and values in
+                  values
+            path_patterns (list): Optional path patterns to use to construct
+                the new file path. If None, the Layout-defined patterns will
+                be used.
+            strict (bool): If True, all entities must be matched inside a
+                pattern in order to be a valid match. If False, extra entities
+                will be ignored so long as all mandatory entities are found.
+        '''
+        if isinstance(source, six.string_types):
+            source = self.files[source]
+
+        if isinstance(source, File):
+            source = source.entities
+
+        if path_patterns is None:
+            path_patterns = self.path_patterns
+
+        return build_path(source, path_patterns, strict)
+
+    def copy_files(self, files=None, path_patterns=None, symbolic_links=True,
+                   root=None, conflicts='fail', **get_selectors):
+        """
+        Copies one or more Files to new locations defined by each File's
+        entities and the specified path_patterns.
+
+        Args:
+            files (list): Optional list of File objects to write out. If none
+                provided, use files from running a get() query using remaining
+                **kwargs.
+            path_patterns (str, list): Write patterns to pass to each file's
+                write_file method.
+            symbolic_links (bool): Whether to copy each file as a symbolic link
+                or a deep copy.
+            root (str): Optional root directory that all patterns are relative
+                to. Defaults to current working directory.
+            conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
+                that defines the desired action when a output path already
+                exists. 'fail' raises an exception; 'skip' does nothing;
+                'overwrite' overwrites the existing file; 'append' adds a
+                suffix
+                to each file copy, starting with 0. Default is 'fail'.
+            **get_selectors (kwargs): Optional key word arguments to pass into
+                a get() query.
+        """
+        _files = self.get(return_type='objects', **get_selectors)
+        if files:
+            _files = list(set(files).intersection(_files))
+
+        for f in _files:
+            f.copy(path_patterns, symbolic_link=symbolic_links,
+                   root=root, conflicts=conflicts)
+
+    def write_contents_to_file(self, entities, path_patterns=None,
+                               contents=None, link_to=None,
+                               content_mode='text', conflicts='fail',
+                               strict=False):
+        """
+        Write arbitrary data to a file defined by the passed entities and
+        path patterns.
+
+        Args:
+            entities (dict): A dictionary of entities, with Entity names in
+                keys and values for the desired file in values.
+            path_patterns (list): Optional path patterns to use when building
+                the filename. If None, the Layout-defined patterns will be
+                used.
+            contents (object): Contents to write to the generate file path.
+                Can be any object serializable as text or binary data (as
+                defined in the content_mode argument).
+            conflicts (str): One of 'fail', 'skip', 'overwrite', or 'append'
+            that defines the desired action when the output path already
+            exists. 'fail' raises an exception; 'skip' does nothing;
+            'overwrite' overwrites the existing file; 'append' adds a suffix
+            to each file copy, starting with 1. Default is 'fail'.
+            strict (bool): If True, all entities must be matched inside a
+                pattern in order to be a valid match. If False, extra entities
+                will be ignored so long as all mandatory entities are found.
+
+        """
+        if not path_patterns:
+            path_patterns = self.path_patterns
+        path = build_path(entities, path_patterns, strict)
+        write_contents_to_file(path, contents=contents, link_to=link_to,
+                               content_mode=content_mode, conflicts=conflicts,
+                               root=self.root)
+        self._index_file(self.root, path)
 
 
 def merge_layouts(layouts):
