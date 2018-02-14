@@ -343,3 +343,18 @@ def test_merge_layouts(bids_layout, stamp_layout):
     assert patt == bids_layout.entities['subject'].pattern
     bids_layout.entities['subject'].pattern = "meh"
     assert patt != "meh"
+
+def test_multiple_paths():
+    root1 = os.path.join(DIRNAME, 'data', 'valuable_stamps')
+    config1 = os.path.join(DIRNAME, 'specs', 'stamps.json')
+    root2 = os.path.join(DIRNAME, 'data', '7t_trt')
+    config2 = os.path.join(DIRNAME, 'specs', 'test.json')
+
+    layout = Layout(path=[root1], config=[config1])
+    assert os.path.exists(layout.root)
+
+    layout = Layout(path=[root1, root2], config=[config1, config2])
+
+    assert 'country' in layout.entities
+    assert 'subject' in layout.entities
+    assert len(layout.files) > 300

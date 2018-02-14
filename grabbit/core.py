@@ -3,7 +3,7 @@ import os
 import re
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
-from grabbit.utils import natural_sort, listify
+from grabbit.utils import natural_sort, listify, dict_merge
 from grabbit.extensions.writable import build_path, write_contents_to_file
 from os.path import join, basename, dirname, abspath, split
 from functools import partial
@@ -191,7 +191,7 @@ class LayoutMetaclass(type):
 
         paths = listify(path)
         if len(paths) == 1:
-            return super(LayoutMetaclass, cls).__call__(path, *args, **kwargs)
+            return super(LayoutMetaclass, cls).__call__(paths[0], *args, **kwargs)
         layouts = []
         for p in paths:
             layout = super(LayoutMetaclass, cls).__call__(p, *args, **kwargs)
@@ -270,10 +270,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             config = json.load(open(config, 'r'))
         elif isinstance(config, list):
             merged = {}
-            for c in config:
+            for c in reversed(config):
                 if isinstance(c, six.string_types):
                     c = json.load(open(c, 'r'))
-                merged.update(c)
+                dict_merge(merged, c)
             config = merged
 
         for e in config['entities']:
@@ -570,6 +570,29 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         data.insert(0, 'path', [f.path for f in files])
         return data
 
+    def get_entities(self, path, exclude=[]):
+        ''' Returns matching entities for a file in the Layout.
+            Args:
+                path (str): The file to search from.
+                exclude (list): Optional list of entities to exclude.
+        '''
+        path = abspath(path)
+        if path not in self.files:
+            raise ValueError(
+                "File '%s' does not match any specification in the current "
+                "project." % path)
+
+        entities = {}
+        for name, ent in self.entities.items():
+            m = ent.regex.search(path)
+            if m:
+                entities[name] = m.group(1)
+
+        for k in exclude:
+            entities.pop(k, None)
+
+        return entities
+
     def get_nearest(self, path, return_type='file', strict=True, all_=False,
                     ignore_strict_entities=None, **kwargs):
         ''' Walk up the file tree from the specified path and return the
@@ -592,16 +615,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             kwargs: Optional keywords to pass on to .get().
         '''
 
-        entities = {}
-        for name, ent in self.entities.items():
-            m = ent.regex.search(path)
-            if m:
-                entities[name] = m.group(1)
-
         # Remove any entities we want to ignore when strict matching is on
-        if strict and ignore_strict_entities is not None:
-            for k in ignore_strict_entities:
-                entities.pop(k, None)
+        exclude = ignore_strict_entities \
+            if strict and ignore_strict_entities is not None else []
+        entities = self.get_entities(path, exclude=exclude)
 
         results = self.get(return_type='file', **kwargs)
 
@@ -746,7 +763,6 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                                content_mode=content_mode, conflicts=conflicts,
                                root=self.root)
         self._index_file(self.root, path)
-
 
 def merge_layouts(layouts):
     ''' Utility function for merging multiple layouts.

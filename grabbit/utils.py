@@ -3,6 +3,7 @@ import re
 
 from os.path import join, dirname, basename
 
+from collections import Mapping
 
 def natural_sort(l, field=None):
     '''
@@ -33,3 +34,22 @@ def listify(obj):
     ''' Wraps all non-list or tuple objects in a list; provides a simple way
     to accept flexible arguments. '''
     return obj if isinstance(obj, (list, tuple, type(None))) else [obj]
+
+def dict_merge(dct, merge_dct):
+    """ Recursive dict merge and list concatenate
+    The ``merge_dct`` is merged into ``dct``.
+    :param dct: dict onto which the merge is executed
+    :param merge_dct: dct merged into dct
+    :return: None
+
+    Inspired by: https://gist.github.com/angstwad/bf22d1822c38a92ec0a9
+    """
+    for k, v in merge_dct.items():
+        if k in dct:
+            if isinstance(dct[k], dict) \
+                and isinstance(merge_dct[k], Mapping):
+                    dict_merge(dct[k], merge_dct[k])
+            elif isinstance(dct[k], list):
+                dct[k] = dct[k] + merge_dct[k]
+        else:
+            dct[k] = merge_dct[k]
