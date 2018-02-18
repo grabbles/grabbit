@@ -296,6 +296,12 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             it should be included in the index '''
         filename = f if isinstance(f, six.string_types) else f.path
 
+        if os.path.isabs(filename) and filename.startswith(self.root + os.path.sep):
+            # for filenames under the root - analyze relative path to avoid
+            # bringing injustice to the grandkids of some unfortunately named
+            # root directories. See
+            filename = os.path.relpath(filename, self.root)
+
         # If file matches any include regex, then True
         include_regex = self.filtering_regex.get('include', [])
         if include_regex:
