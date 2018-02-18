@@ -22,7 +22,11 @@ class File(object):
         self.path = filename
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
-        self.entities = {}
+        self.tags = {}
+
+    @property
+    def entities(self):
+        return {k: v.value for k, v in self.tags.items()}
 
     def _matches(self, entities=None, extensions=None, regex_search=False):
         """
@@ -49,7 +53,7 @@ class File(object):
 
             for name, val in entities.items():
 
-                if name not in self.entities:
+                if name not in self.tags:
                     return False
 
                 def make_patt(x):
@@ -65,7 +69,7 @@ class File(object):
                 ent_patts = [make_patt(x) for x in listify(val)]
                 patt = '|'.join(ent_patts)
 
-                if re.search(patt, str(self.entities[name])) is None:
+                if re.search(patt, str(self.tags[name].value)) is None:
                     return False
         return True
 
@@ -74,9 +78,9 @@ class File(object):
         Returns the File as a named tuple. The full path plus all entity
         key/value pairs are returned as attributes.
         """
-        _File = namedtuple('File', 'filename ' +
-                           ' '.join(self.entities.keys()))
-        return _File(filename=self.path, **self.entities)
+        entities = self.entities
+        _File = namedtuple('File', 'filename ' + ' '.join(entities.keys()))
+        return _File(filename=self.path, **entities)
 
     def copy(self, path_patterns, symbolic_link=False, root=None,
              conflicts='fail'):
@@ -194,8 +198,7 @@ class Entity(object):
             return False
 
         if update_file:
-            f.entities[self.name] = val
-            f.entity_map[self.name] = self.id
+            f.tags[self.name] = Tag(self, val)
 
         return True
 
@@ -387,11 +390,11 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         for e in self.entities.values():
             e.matches(f, update_file=True)
 
-        fe = f.entities.keys()
+        file_ents = f.tags.keys()
 
         # Only keep Files that match at least one Entity, and all
         # mandatory Entities
-        if fe and not (self.mandatory - set(fe)):
+        if file_ents and not (self.mandatory - set(file_ents)):
             self.files[f.path] = f
             # Bind the File to all of the matching entities
             for ent, val in f.entities.items():
@@ -647,9 +650,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             folders[f.dirname].append(f)
 
         def count_matches(f):
-            keys = set(entities.keys()) & set(f.entities.keys())
+            f_ents = f.entities
+            keys = set(entities.keys()) & set(f_ents.keys())
             shared = len(keys)
-            return [shared, sum([entities[k] == f.entities[k] for k in keys])]
+            return [shared, sum([entities[k] == f_ents[k] for k in keys])]
 
         matches = []
 
