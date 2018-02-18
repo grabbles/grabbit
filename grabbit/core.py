@@ -15,11 +15,12 @@ __all__ = ['File', 'Entity', 'Layout']
 
 class File(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, domains=None):
         """
         Represents a single file.
         """
         self.path = filename
+        self.domains = domains
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
         self.tags = {}
@@ -115,6 +116,18 @@ class Domain(object):
         self.root = root
         self.entities = {}
         self.files = []
+        self.filtering_regex = None
+        self.path_patterns = []
+
+        if 'index' in config:
+            self.filtering_regex = config['index']
+            if self.filtering_regex.get('include') and \
+               self.filtering_regex.get('exclude'):
+                raise ValueError("You can only define either include or "
+                                 "exclude regex, not both.")
+
+        if 'default_path_patterns' in config:
+            self.path_patterns += listify(config['default_path_patterns'])
 
     def add_entity(self, ent):
         self.entities[ent.name] = ent
@@ -241,7 +254,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
                  absolute_paths=True, regex_search=False, entity_mapper=None,
-                 path_patterns=None):
+                 path_patterns=None, config_filename='layout.json'):
         """
         A container for all the files and metadata found at the specified path.
 
@@ -283,6 +296,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             path_patterns (str, list): One or more filename patterns to use
                 as a default path pattern for this layout's files.  Can also
                 be specified in the config file.
+            config_filename (str): The name of directory-specific config files.
+                Every directory will be scanned for this file, and if found,
+                the config file will be read in and added to the list of
+                configs.
         """
 
         self.root = abspath(path) if absolute_paths else path
@@ -294,40 +311,38 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         self.filtering_regex = {}
         self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
         self.path_patterns = path_patterns if path_patterns else []
+        self.config_filename = config_filename
+        self.domains = OrderedDict()
 
         if config is not None:
-            self._load_config(config)
+            for c in listify(config):
+                self._load_domain(c)
 
         if index is None:
             self.index()
         else:
             self.load_index(index)
 
-    def _load_config(self, config):
+    def _load_domain(self, config, root=None):
+
         if isinstance(config, six.string_types):
             config = json.load(open(config, 'r'))
-        elif isinstance(config, list):
-            merged = {}
-            for c in config:
-                if isinstance(c, six.string_types):
-                    c = json.load(open(c, 'r'))
-                merged.update(c)
-            config = merged
 
-        for e in config['entities']:
-            self.add_entity(**e)
+        if 'name' not in config:
+            raise ValueError("Config file missing 'name' attribute.")
+        if config['name'] in self.domains:
+            raise ValueError("Config with name '%s' already exists in "
+                             "Layout. Name of each config file must be "
+                             "unique across entire Layout.")
+        if 'root' not in config:
+            config['root'] = root if root is not None else '/'
 
-        if 'index' in config:
-            self.filtering_regex = config['index']
-            if self.filtering_regex.get('include') and \
-               self.filtering_regex.get('exclude'):
-                raise ValueError("You can only define either include or "
-                                 "exclude regex, not both.")
+        # Load entities
+        domain = Domain(config['name'], config, config['root'])
+        for e in config.get('entities', []):
+            self.add_entity(domain=domain, **e)
 
-        if 'default_path_patterns' in config:
-            self.path_patterns += listify(config['default_path_patterns'])
-
-        return config
+        self.domains[domain.name] = domain
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if
@@ -763,7 +778,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def write_contents_to_file(self, entities, path_patterns=None,
                                contents=None, link_to=None,
                                content_mode='text', conflicts='fail',
-                               strict=False):
+                               strict=False, domains=None):
         """
         Write arbitrary data to a file defined by the passed entities and
         path patterns.
@@ -785,10 +800,17 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             strict (bool): If True, all entities must be matched inside a
                 pattern in order to be a valid match. If False, extra entities
                 will be ignored so long as all mandatory entities are found.
+            domains (list): List of Domains to scan for path_patterns. Order
+                determines precedence (i.e., earlier Domains will be scanned
+                first). If None, all available domains are included.
 
         """
         if not path_patterns:
             path_patterns = self.path_patterns
+            if domains is None:
+                domains = list(self.domains.keys())
+            for dom in domains:
+                path_patterns.extend(self.domains[dom].path_patterns)
         path = build_path(entities, path_patterns, strict)
         write_contents_to_file(path, contents=contents, link_to=link_to,
                                content_mode=content_mode, conflicts=conflicts,
