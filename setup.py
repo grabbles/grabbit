@@ -4,7 +4,14 @@ from setuptools import setup, find_packages
 if len(set(('test', 'easy_install')).intersection(sys.argv)) > 0:
     import setuptools
 
-tests_require = []
+tests_require = ['pytest-capturelog']
+# extended
+extras_require = {
+    'tests': tests_require
+}
+# just a convention to say 'pip install .[full]' to get all
+# possibly necessary dependencies installed
+extras_require['full'] = sum(list(extras_require.values()), [])
 
 VERSION = "0.1.0"
 
@@ -18,6 +25,7 @@ setup(
     packages=find_packages(exclude=['tests', 'test_*']),
     package_data={'grabbit.tests': ['data/*']},
     install_requires=[],
+    extras_require=extras_require,
     tests_require=tests_require,
     license='MIT',
     download_url='http://github.com/grabbles/grabbit/archive/%s.tar.gz' % VERSION,
