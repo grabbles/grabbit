@@ -26,11 +26,11 @@
     },
     {
       "name": "task",
-      "pattern": "task-(.*?)-"
+      "pattern": "task-(.*?)_"
     },
     {
       "name": "acquisition",
-      "pattern": "acq-(.*?)-"
+      "pattern": "acq-(.*?)_"
     },
     {
       "name": "bval",
