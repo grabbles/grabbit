@@ -1,5 +1,5 @@
 import pytest
-from grabbit import File, Entity, Layout, merge_layouts
+from grabbit import File, Entity, Layout, Tag, merge_layouts
 import os
 import posixpath as psp
 import tempfile
@@ -63,7 +63,7 @@ class TestFile:
         assert file._matches()
         assert file._matches(extensions='nii.gz')
         assert not file._matches(extensions=['.txt', '.rtf'])
-        file.entities = {'task': 'rest', 'run': '2'}
+        file.tags = {'task': Tag(None, 'rest'), 'run': Tag(None, '2')}
         assert file._matches(entities={'task': 'rest', 'run': 2})
         assert not file._matches(entities={'task': 'rest', 'run': 4})
         assert not file._matches(entities={'task': 'st'})
@@ -75,7 +75,7 @@ class TestFile:
                              regex_search=True)
 
     def test_named_tuple(self, file):
-        file.entities = {'attrA': 'apple', 'attrB': 'banana'}
+        file.tags = {'attrA': Tag(None, 'apple'), 'attrB': Tag(None, 'banana')}
         tup = file.as_named_tuple()
         assert(tup.filename == file.path)
         assert isinstance(tup, tuple)
@@ -98,7 +98,7 @@ class TestEntity:
         tmpdir.mkdir("tmp").join(filename).write("###")
         f = File(os.path.join(str(tmpdir), filename))
         e = Entity('avaricious', 'aardvark-(\d+)')
-        e.matches(f)
+        e.matches(f, update_file=True)
         assert 'avaricious' in f.entities
         assert f.entities['avaricious'] == '4'
 

@@ -424,6 +424,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         ''' Save the current Layout's index to a .json file.
         Args:
             filename (str): Filename to write to.
+
+        Note: At the moment, this won't serialize directory-specific config
+        files. This means reconstructed indexes will only work properly in
+        cases where there aren't multiple layout specs within a project.
         '''
         data = {f.path: f.entities for f in self.files.values()}
         with open(filename, 'w') as outfile:
@@ -439,6 +443,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 False, in which case it is assumed that all entity definitions
                 in the loaded index are correct and do not need any further
                 validation.
+
+        Note: At the moment, directory-specific config files aren't serialized.
+        This means reconstructed indexes will only work properly in cases
+        where there aren't multiple layout specs within a project.
         '''
         self._reset_index()
         data = json.load(open(filename, 'r'))
@@ -450,7 +458,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 self._index_file(root, f)
             else:
                 f = self._make_file_object(root, f)
-                f.entities = ents
+                tags = {k: Tag(self.entities[k], v) for k, v in ents.items()}
+                f.tags = tags
                 self.files[f.path] = f
 
                 for ent, val in f.entities.items():

@@ -1,5 +1,5 @@
 import pytest
-from grabbit import Layout, File
+from grabbit import Layout, File, Tag
 from grabbit.extensions.writable import build_path
 import os
 import shutil
@@ -13,6 +13,7 @@ def writable_file(tmpdir):
     fn.write('###')
     return File(os.path.join(str(fn)))
 
+
 @pytest.fixture
 def layout():
     data_dir = join(dirname(__file__), 'data', '7t_trt')
@@ -20,15 +21,20 @@ def layout():
     layout = Layout(data_dir, config=config)
     return layout
 
+
 class TestWritableFile:
 
     def test_build_path(self, writable_file):
-        writable_file.entities = {'task': 'rest', 'run': '2', 'subject': '3'}
+        writable_file.tags = {
+            'task': Tag(None, 'rest'), 'run': Tag(None, '2'),
+            'subject': Tag(None, '3')
+        }
 
         # Single simple pattern
         with pytest.raises(TypeError):
             build_path(writable_file.entities)
-        pat = join(writable_file.dirname, '{task}/sub-{subject}/run-{run}.nii.gz')
+        pat = join(writable_file.dirname,
+                   '{task}/sub-{subject}/run-{run}.nii.gz')
         target = join(writable_file.dirname, 'rest/sub-3/run-2.nii.gz')
         assert build_path(writable_file.entities, pat) == target
 
@@ -79,11 +85,13 @@ class TestWritableFile:
         assert not build_path(entities, pats, True)
 
     def test_build_file(self, writable_file, tmpdir, caplog):
-        writable_file.entities = {'task': 'rest', 'run': '2', 'subject': '3'}
+        writable_file.tags = {'task': Tag(None, 'rest'), 'run': Tag(None, '2'),
+                              'subject': Tag(None, '3')}
 
         # Simple write out
         new_dir = join(writable_file.dirname, 'rest')
-        pat = join(writable_file.dirname, '{task}/sub-{subject}/run-{run}.nii.gz')
+        pat = join(writable_file.dirname,
+                   '{task}/sub-{subject}/run-{run}.nii.gz')
         target = join(writable_file.dirname, 'rest/sub-3/run-2.nii.gz')
         writable_file.copy(pat)
         assert exists(target)
@@ -98,7 +106,8 @@ class TestWritableFile:
         assert log_message == 'A file at path {} already exists, ' \
                               'skipping writing file.'.format(target)
         writable_file.copy(pat, conflicts='append')
-        append_target = join(writable_file.dirname, 'rest/sub-3/run-2_1.nii.gz')
+        append_target = join(writable_file.dirname,
+                             'rest/sub-3/run-2_1.nii.gz')
         assert exists(append_target)
         writable_file.copy(pat, conflicts='overwrite')
         assert exists(target)
@@ -200,8 +209,8 @@ class TestWritableLayout:
     def test_build_file_from_layout(self, tmpdir, layout):
         entities = {'subject': 'Bob', 'session': '01', 'run': '1'}
         pat = join(str(tmpdir), 'sub-{subject}'
-                        '/sess-{session}'
-                        '/r-{run}.nii.gz')
+                   '/sess-{session}'
+                   '/r-{run}.nii.gz')
         path = layout.build_path(entities, path_patterns=pat)
         assert path == join(str(tmpdir), 'sub-Bob/sess-01/r-1.nii.gz')
 
