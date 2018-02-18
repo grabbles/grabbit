@@ -437,6 +437,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def save_index(self, filename):
         ''' Save the current Layout's index to a .json file.
+
         Args:
             filename (str): Filename to write to.
 
@@ -450,6 +451,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def load_index(self, filename, reindex=False):
         ''' Load the Layout's index from a plaintext file.
+
         Args:
             filename (str): Path to the plaintext index file.
             reindex (bool): If True, discards entity values provided in the
@@ -511,6 +513,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             regex_search=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
+
         Args:
             return_type (str): Type of result to return. Valid values:
                 'tuple': returns a list of namedtuples containing file name as
@@ -590,6 +593,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def unique(self, entity):
         """
         Return a list of unique values for the named entity.
+
         Args:
             entity (str): The name of the entity to retrieve unique values of.
         """
@@ -598,6 +602,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def count(self, entity, files=False):
         """
         Return the count of unique values or files for the named entity.
+
         Args:
             entity (str): The name of the entity.
             files (bool): If True, counts the number of filenames that contain
@@ -610,7 +615,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         """
         Return information for all Files tracked in the Layout as a pandas
         DataFrame.
-        args:
+
+        Args:
             kwargs: Optional keyword arguments passed on to get(). This allows
                 one to easily select only a subset of files for export.
         Returns:
@@ -636,6 +642,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                     ignore_strict_entities=None, **kwargs):
         ''' Walk up the file tree from the specified path and return the
         nearest matching file(s).
+
         Args:
             path (str): The file to search from.
             return_type (str): What to return; must be one of 'file' (default)
