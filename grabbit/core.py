@@ -28,6 +28,7 @@ class File(object):
         """
         Checks whether the file matches all of the passed entities and
         extensions.
+
         Args:
             entities (dict): A dictionary of entity names -> regex patterns.
             extensions (str, list): One or more file extensions to allow.
@@ -123,10 +124,11 @@ Tag = namedtuple('Tag', ['entity', 'value'])
 
 class Entity(object):
 
-    def __init__(self, name, pattern=None, mandatory=False, directory=None,
-                 map_func=None, **kwargs):
+    def __init__(self, name, pattern=None, domain=None, mandatory=False,
+                 directory=None, map_func=None, **kwargs):
         """
         Represents a single entity defined in the JSON config.
+
         Args:
             name (str): The name of the entity (e.g., 'subject', 'run', etc.)
             pattern (str): A regex pattern used to match against file names.
@@ -138,6 +140,7 @@ class Entity(object):
             map_func (callable): Optional callable used to extract the Entity's
                 value from the passed string (instead of trying to match on the
                 defined .pattern).
+            domain (Domain): The Domain the Entity belongs to.
             kwargs (dict): Additional keyword arguments.
         """
         if pattern is None and map_func is None:
@@ -147,12 +150,14 @@ class Entity(object):
                              "set." % name)
         self.name = name
         self.pattern = pattern
+        self.domain = domain
         self.mandatory = mandatory
         self.directory = directory
         self.map_func = map_func
         self.files = {}
         self.regex = re.compile(pattern) if pattern is not None else None
         self.kwargs = kwargs
+        self.id = '.'.join([getattr(domain, 'name', ''), name])
 
     def __iter__(self):
         for i in self.unique():
@@ -169,20 +174,30 @@ class Entity(object):
             setattr(result, k, new_val)
         return result
 
-    def matches(self, f):
+    def matches(self, f, update_file=False):
         """
         Determine whether the passed file matches the Entity and update the
         Entity/File mappings.
+
         Args:
             f (File): The File instance to match against.
+            update_file (bool): If True, the file's tag list is updated to
+                include the current Entity.
         """
         if self.map_func is not None:
-            f.entities[self.name] = self.map_func(f)
+            val = self.map_func(f)
         else:
             m = self.regex.search(f.path)
-            if m is not None:
-                val = m.group(1)
-                f.entities[self.name] = val
+            val = m.group(1) if m is not None else None
+
+        if val is None:
+            return False
+
+        if update_file:
+            f.entities[self.name] = val
+            f.entity_map[self.name] = self.id
+
+        return True
 
     def add_file(self, filename, value):
         """ Adds the specified filename to tracking. """
@@ -194,6 +209,7 @@ class Entity(object):
 
     def count(self, files=False):
         """ Returns a count of unique values or files.
+
         Args:
             files (bool): When True, counts all files mapped to the Entity.
                 When False, counts all unique values.
@@ -369,7 +385,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             return
 
         for e in self.entities.values():
-            e.matches(f)
+            e.matches(f, update_file=True)
 
         fe = f.entities.keys()
 
