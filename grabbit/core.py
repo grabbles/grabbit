@@ -102,6 +102,25 @@ class File(object):
                                conflicts=conflicts)
 
 
+class Domain(object):
+
+    def __init__(self, name, config, root):
+        self.name = name
+        self.config = config
+        self.root = root
+        self.entities = {}
+        self.files = []
+
+    def add_entity(self, ent):
+        self.entities[ent.name] = ent
+
+    def add_file(self, file):
+        self.files.append(file)
+
+
+Tag = namedtuple('Tag', ['entity', 'value'])
+
+
 class Entity(object):
 
     def __init__(self, name, pattern=None, mandatory=False, directory=None,
