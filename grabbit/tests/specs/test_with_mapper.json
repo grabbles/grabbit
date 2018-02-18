@@ -1,4 +1,5 @@
 {
+  "name": "test_with_mapper",
   "index" : {
     "exclude" : [".*derivatives.*"]
   },
