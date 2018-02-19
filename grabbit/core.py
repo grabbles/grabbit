@@ -5,9 +5,10 @@ from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, listify
 from grabbit.extensions.writable import build_path, write_contents_to_file
-from os.path import join, basename, dirname, abspath, split
+from os.path import (join, basename, dirname, abspath, split, isabs, exists)
 from functools import partial
 from copy import deepcopy
+import warnings
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -111,6 +112,7 @@ class File(object):
 class Domain(object):
 
     def __init__(self, name, config, root):
+
         self.name = name
         self.config = config
         self.root = root
@@ -334,8 +336,27 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             raise ValueError("Config with name '%s' already exists in "
                              "Layout. Name of each config file must be "
                              "unique across entire Layout.")
+        if root is not None:
+            config['root'] = root
+
         if 'root' not in config:
-            config['root'] = root if root is not None else '/'
+            warnings.warn("No valid root directory found for domain '%s'."
+                          " Falling back on the Layout's root directory. "
+                          "If this isn't the intended behavior, make sure "
+                          "the config file for this domain includes a "
+                          "'root' key." % config['name'])
+            config['root'] = self.root
+        elif not isabs(config['root']):
+            _root = config['root']
+            config['root'] = abspath(join(self.root, config['root']))
+            if not exists(config['root']):
+                msg = ("Relative path '%s' for domain '%s' interpreted as '%s'"
+                       ", but this directory doesn't exist. Either specify the"
+                       " domain root as an absolute path, or make sure it "
+                       "points to a valid directory when appended to the "
+                       "Layout's root (%s)." % (_root, config['name'],
+                                                config['root'], self.root))
+                raise ValueError(msg)
 
         # Load entities
         domain = Domain(config['name'], config, config['root'])
@@ -343,6 +364,32 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             self.add_entity(domain=domain, **e)
 
         self.domains[domain.name] = domain
+
+    def get_domain_entities(self, domains=None, file=None):
+        # Get all Entities included in the specified Domains, in the same
+        # order as Domains in the list. Alternatively, if a file is passed,
+        # identify its domains and then return the entities.
+
+        if domains is None and file is None:
+            domains = list(self.domains.keys())
+
+        if file is not None:
+            domains = [d.name for d in self.domains.values()
+                       if file in d.files]
+
+        ents = {}
+        for d in domains:
+            ents.update(self.domains[d].entities)
+        return ents
+
+        # if 'index' in config:
+        #     self.filtering_regex = config['index']
+        #     if self.filtering_regex.get('include') and \
+        #        self.filtering_regex.get('exclude'):
+        #         raise ValueError("You can only define either include or "
+        #                          "exclude regex, not both.")
+
+        # self.config = configs
 
     def _check_inclusions(self, f):
         ''' Check file or directory against regexes in config to determine if
@@ -395,14 +442,28 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         for ent in self.entities.values():
             ent.files = {}
 
-    def _index_file(self, root, f):
+    def _index_file(self, root, f, domains=None):
 
+        # If domains aren't explicitly passed, figure out what applies
+        if domains is None:
+            domains = [d.name for d in self.domains.values()
+                       if root.startswith(d.root)]
+
+        # Create the file object--allows for subclassing
         f = self._make_file_object(root, f)
 
         if not (self._check_inclusions(f) and self._validate_file(f)):
             return
 
-        for e in self.entities.values():
+        for d in domains:
+            self.domains[d].add_file(f)
+
+        entities = self.get_domain_entities(domains)
+
+        if entities:
+            self.files[f.path] = f
+
+        for e in entities.values():
             e.matches(f, update_file=True)
 
         file_ents = f.tags.keys()
@@ -412,8 +473,24 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         if file_ents and not (self.mandatory - set(file_ents)):
             self.files[f.path] = f
             # Bind the File to all of the matching entities
-            for ent, val in f.entities.items():
-                self.entities[ent].add_file(f.path, val)
+            for name, tag in f.tags.items():
+                ent_id = tag.entity.id
+                self.entities[ent_id].add_file(f.path, tag.value)
+
+    def _find_entity(self, entity):
+        ''' Find an Entity instance by name. Checks both name and id fields.'''
+        if entity in self.entities:
+            return self.entities[entity]
+        _ent = [e for e in self.entities.values() if e.name == entity]
+        if len(_ent) > 1:
+            raise ValueError("Entity name '%s' matches %d entities. To "
+                             "avoid ambiguity, please prefix the entity "
+                             "name with its domain (e.g., 'bids.%s'." %
+                             (entity, len(_ent), entity))
+        if _ent:
+            return _ent[0]
+
+        raise ValueError("No entity '%s' found." % entity)
 
     def index(self):
 
@@ -430,10 +507,31 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             directories[:] = [split(d)[1] for d in
                               filter(self._validate_dir, full_dirs)]
 
-            # self._index_filenames(filenames)
+            # Determine which Domains apply to the current directory
+            domains = [d.name for d in self.domains.values()
+                       if root.startswith(d.root)]
+
+            if self.config_filename in filenames:
+                config_path = os.path.join(root, self.config_filename)
+                config = json.load(open(config_path, 'r'))
+                self._load_domain(config)
+
+                # Filter Domains if current dir's config file has an
+                # include directive
+                if 'include' in config:
+                    missing = set(config['include']) - set(domains)
+                    if missing:
+                        msg = ("Missing configs '%s' specified in include "
+                               "directive of config '%s'. Please make sure "
+                               "these config files are accessible from the "
+                               "directory %s.") % (missing, config['name'],
+                                                   root)
+                        raise ValueError(msg)
+                    domains = config['include']
+                domains.append(config['name'])
 
             for f in filenames:
-                self._index_file(root, f)
+                self._index_file(root, f, domains)
 
     def save_index(self, filename):
         ''' Save the current Layout's index to a .json file.
@@ -445,7 +543,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         files. This means reconstructed indexes will only work properly in
         cases where there aren't multiple layout specs within a project.
         '''
-        data = {f.path: f.entities for f in self.files.values()}
+        data = {}
+        for f in self.files.values():
+            entities = {v.entity.id: v.value for k, v in f.tags.items()}
+            data[f.path] = entities
         with open(filename, 'w') as outfile:
             json.dump(data, outfile)
 
@@ -470,6 +571,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         for path, ents in data.items():
 
+            # If file path isn't absolute, assume it's relative to layout root
+            if not isabs(path):
+                path = join(self.root, path)
+
             root, f = dirname(path), basename(path)
             if reindex:
                 self._index_file(root, f)
@@ -482,7 +587,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 for ent, val in f.entities.items():
                     self.entities[ent].add_file(f.path, val)
 
-    def add_entity(self, **kwargs):
+    def add_entity(self, domain, **kwargs):
         ''' Add a new Entity to tracking. '''
 
         # Set the entity's mapping func if one was specified
@@ -497,12 +602,14 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             map_func = getattr(self.entity_mapper, kwargs['map_func'])
             kwargs['map_func'] = map_func
 
-        ent = Entity(**kwargs)
+        ent = Entity(domain=domain, **kwargs)
+        domain.add_entity(ent)
+
         if ent.mandatory:
-            self.mandatory.add(ent.name)
+            self.mandatory.add(ent.id)
         if ent.directory is not None:
             ent.directory = ent.directory.replace('{{root}}', self.root)
-        self.entities[ent.name] = ent
+        self.entities[ent.id] = ent
         if self.dynamic_getters:
             func = partial(getattr(self, 'get'), target=ent.name,
                            return_type='id')
@@ -510,7 +617,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             setattr(self, 'get_%s' % func_name, func)
 
     def get(self, return_type='tuple', target=None, extensions=None,
-            regex_search=None, **kwargs):
+            domains=None, regex_search=None, **kwargs):
         """
         Retrieve files and/or metadata from the current Layout.
 
@@ -527,6 +634,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 (if return_type is 'dir' or 'id').
             extensions (str, list): One or more file extensions to filter on.
                 Files with any other extensions will be excluded.
+            domains (list): Optional list of domain names to scan for files.
+                If None, all available domains are scanned.
             regex_search (bool or None): Whether to require exact matching
                 (False) or regex search (True) when comparing the query string
                 to each entity. If None (default), uses the value found in
@@ -561,6 +670,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             return result
 
         else:
+            valid_entities = self.get_domain_entities(domains)
+
             if target is None:
                 raise ValueError('If return_type is "id" or "dir", a valid '
                                  'target entity must also be specified.')
@@ -571,7 +682,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 return natural_sort(result)
 
             elif return_type == 'dir':
-                template = self.entities[target].directory
+                template = valid_entities[target].directory
                 if template is None:
                     raise ValueError('Return type set to directory, but no '
                                      'directory template is defined for the '
@@ -579,7 +690,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 # Construct regex search pattern from target directory template
                 to_rep = re.findall('\{(.*?)\}', template)
                 for ent in to_rep:
-                    patt = self.entities[ent].pattern
+                    patt = valid_entities[ent].pattern
                     template = template.replace('{%s}' % ent, patt)
                 template += '[^\%s]*$' % os.path.sep
                 matches = [f.dirname for f in self.files.values()
@@ -597,7 +708,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         Args:
             entity (str): The name of the entity to retrieve unique values of.
         """
-        return self.entities[entity].unique()
+        return self._find_entity(entity).unique()
 
     def count(self, entity, files=False):
         """
@@ -609,7 +720,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 at least one value of the entity, rather than the number of
                 unique values of the entity.
         """
-        return self.entities[entity].count(files)
+        return self._find_entity(entity).count(files)
 
     def as_data_frame(self, **kwargs):
         """

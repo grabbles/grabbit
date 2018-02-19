@@ -273,9 +273,11 @@ class TestLayout:
             index = json.load(infile)
         assert len(index) == len(bids_layout.files)
         # Check that entities for first 10 files match
+        files = list(bids_layout.files.values())
         for i in range(10):
-            f = list(bids_layout.files.values())[i]
-            assert f.entities == index[f.path]
+            f = files[i]
+            entities = {v.entity.id: v.value for v in f.tags.values()}
+            assert entities == index[f.path]
         os.unlink(tmp)
 
     def test_load_index(self, bids_layout):
