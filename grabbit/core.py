@@ -16,12 +16,11 @@ __all__ = ['File', 'Entity', 'Layout']
 
 class File(object):
 
-    def __init__(self, filename, domains=None):
+    def __init__(self, filename):
         """
         Represents a single file.
         """
         self.path = filename
-        self.domains = domains
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
         self.tags = {}
@@ -29,6 +28,10 @@ class File(object):
     @property
     def entities(self):
         return {k: v.value for k, v in self.tags.items()}
+
+    @property
+    def domains(self):
+        return tuple(set([t.entity.domain.name for t in self.tags.values()]))
 
     def _matches(self, entities=None, extensions=None, regex_search=False):
         """
@@ -369,12 +372,11 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         # order as Domains in the list. Alternatively, if a file is passed,
         # identify its domains and then return the entities.
 
-        if domains is None and file is None:
-            domains = list(self.domains.keys())
-
-        if file is not None:
-            domains = [d.name for d in self.domains.values()
-                       if file in d.files]
+        if file is None:
+            if domains is None:
+                domains = list(self.domains.keys())
+        else:
+            domains = self._get_domains_for_file(file)
 
         ents = {}
         for d in domains:
@@ -438,12 +440,16 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         for ent in self.entities.values():
             ent.files = {}
 
+    def _get_domains_for_file(self, f):
+        if isinstance(f, File):
+            return f.domains
+        return [d.name for d in self.domains.values() if f.startswith(d.root)]
+
     def _index_file(self, root, f, domains=None):
 
         # If domains aren't explicitly passed, figure out what applies
         if domains is None:
-            domains = [d.name for d in self.domains.values()
-                       if root.startswith(d.root)]
+            domains = self._get_domains_for_file(root)
 
         # Create the file object--allows for subclassing
         f = self._make_file_object(root, f)
@@ -498,8 +504,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         for root, directories, filenames in dataset:
 
             # Determine which Domains apply to the current directory
-            domains = [d.name for d in self.domains.values()
-                       if root.startswith(d.root)]
+            domains = self._get_domains_for_file(root)
 
             # Exclude directories that match exclude regex from further search
             full_dirs = [os.path.join(root, d) for d in directories]
@@ -773,10 +778,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         '''
 
         entities = {}
-        for name, ent in self.entities.items():
+        for ent in self.entities.values():
             m = ent.regex.search(path)
             if m:
-                entities[name] = m.group(1)
+                entities[ent.name] = m.group(1)
 
         # Remove any entities we want to ignore when strict matching is on
         if strict and ignore_strict_entities is not None:
