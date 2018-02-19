@@ -30,9 +30,12 @@ def bids_layout(request):
         hdfs = pytest.importorskip("hdfs")
         from grabbit.extensions import HDFSLayout
         client = hdfs.Config().get_client()
-        root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
-        config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test.json')
+        root = psp.join('hdfs://localhost:9000{0}'.format(
+            client.root), 'data', '7t_trt')
+        config = psp.join('hdfs://localhost:9000{0}'.format(
+            client.root), 'specs', 'test.json')
         return HDFSLayout(root, config, regex_search=True)
+
 
 @pytest.fixture(scope='module')
 def stamp_layout():
@@ -261,7 +264,7 @@ class TestLayout:
         assert targ not in layout_include.files
 
         with pytest.raises(ValueError):
-            layout_include._load_config({'entities': [],
+            layout_include._load_domain({'entities': [],
                                          'index': {'include': 'test',
                                                    'exclude': 'test'}})
 
@@ -326,7 +329,7 @@ class TestLayout:
     def test_clone(self, bids_layout):
         lc = bids_layout.clone()
         attrs = ['root', 'mandatory', 'dynamic_getters', 'regex_search',
-                 'filtering_regex', 'entity_mapper']
+                 'entity_mapper']
         for a in attrs:
             assert getattr(bids_layout, a) == getattr(lc, a)
         assert set(bids_layout.files.keys()) == set(lc.files.keys())
@@ -337,11 +340,15 @@ def test_merge_layouts(bids_layout, stamp_layout):
     layout = merge_layouts([bids_layout, stamp_layout])
     assert len(layout.files) == len(bids_layout.files) + \
         len(stamp_layout.files)
-    assert 'country' in layout.entities
-    assert 'subject' in layout.entities
+    assert 'stamps.country' in layout.entities
+    assert 'test.subject' in layout.entities
+    dom = layout.domains['stamps']
+    assert 'country' in dom.entities
+    dom = layout.domains['test']
+    assert 'subject' in dom.entities
 
     # Make sure first Layout was cloned and not passed by reference
-    patt = layout.entities['subject'].pattern
-    assert patt == bids_layout.entities['subject'].pattern
-    bids_layout.entities['subject'].pattern = "meh"
+    patt = layout.entities['test.subject'].pattern
+    assert patt == bids_layout.entities['test.subject'].pattern
+    bids_layout.entities['test.subject'].pattern = "meh"
     assert patt != "meh"

@@ -118,7 +118,7 @@ class Domain(object):
         self.root = root
         self.entities = {}
         self.files = []
-        self.filtering_regex = None
+        self.filtering_regex = {}
         self.path_patterns = []
 
         if 'index' in config:
@@ -310,7 +310,6 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         self.mandatory = set()
         self.dynamic_getters = dynamic_getters
         self.regex_search = regex_search
-        self.filtering_regex = {}
         self.entity_mapper = self if entity_mapper == 'self' else entity_mapper
         self.path_patterns = path_patterns if path_patterns else []
         self.config_filename = config_filename
@@ -382,33 +381,30 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             ents.update(self.domains[d].entities)
         return ents
 
-        # if 'index' in config:
-        #     self.filtering_regex = config['index']
-        #     if self.filtering_regex.get('include') and \
-        #        self.filtering_regex.get('exclude'):
-        #         raise ValueError("You can only define either include or "
-        #                          "exclude regex, not both.")
-
-        # self.config = configs
-
-    def _check_inclusions(self, f):
+    def _check_inclusions(self, f, domains=None):
         ''' Check file or directory against regexes in config to determine if
             it should be included in the index '''
+
         filename = f if isinstance(f, six.string_types) else f.path
 
-        # If file matches any include regex, then True
-        include_regex = self.filtering_regex.get('include', [])
-        if include_regex:
-            for regex in include_regex:
-                if re.match(regex, filename):
-                    break
-            else:
-                return False
-        else:
-            # If file matches any excldue regex, then false
-            for regex in self.filtering_regex.get('exclude', []):
-                if re.match(regex, filename, flags=re.UNICODE):
+        if domains is None:
+            domains = list(self.domains.keys())
+
+        for dom in domains:
+            dom = self.domains[dom]
+            # If file matches any include regex, then True
+            include_regex = dom.filtering_regex.get('include', [])
+            if include_regex:
+                for regex in include_regex:
+                    if re.match(regex, filename):
+                        break
+                else:
                     return False
+            else:
+                # If file matches any excldue regex, then false
+                for regex in dom.filtering_regex.get('exclude', []):
+                    if re.match(regex, filename, flags=re.UNICODE):
+                        return False
 
         return True
 
@@ -501,15 +497,19 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         # Loop over all files
         for root, directories, filenames in dataset:
 
-            # Exclude directories that match exclude regex from further search
-            full_dirs = [os.path.join(root, d) for d in directories]
-            full_dirs = filter(self._check_inclusions, full_dirs)
-            directories[:] = [split(d)[1] for d in
-                              filter(self._validate_dir, full_dirs)]
-
             # Determine which Domains apply to the current directory
             domains = [d.name for d in self.domains.values()
                        if root.startswith(d.root)]
+
+            # Exclude directories that match exclude regex from further search
+            full_dirs = [os.path.join(root, d) for d in directories]
+
+            def check_incl(directory):
+                return self._check_inclusions(directory, domains)
+
+            full_dirs = filter(check_incl, full_dirs)
+            full_dirs = filter(self._validate_dir, full_dirs)
+            directories[:] = [split(d)[1] for d in full_dirs]
 
             if self.config_filename in filenames:
                 config_path = os.path.join(root, self.config_filename)
@@ -954,6 +954,7 @@ def merge_layouts(layouts):
 
     for l in layouts[1:]:
         layout.files.update(l.files)
+        layout.domains.update(l.domains)
 
         for k, v in l.entities.items():
             if k not in layout.entities:
