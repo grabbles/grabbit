@@ -353,6 +353,14 @@ class TestLayout:
     def test_get_by_domain(self, stamp_layout):
         files = stamp_layout.get(domains='usa_stamps')
         assert len(files) == 3
+        files = stamp_layout.get(domains=['nonexistent', 'doms'])
+        assert not files
+        files = stamp_layout.get(domains='usa_stamps', value='35',
+                                 regex_search=True)
+        assert len(files) == 1
+        files = stamp_layout.get(value='35', regex_search=True)
+        assert len(files) == 2
+
 
 def test_merge_layouts(bids_layout, stamp_layout):
     layout = merge_layouts([bids_layout, stamp_layout])
