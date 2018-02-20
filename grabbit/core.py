@@ -535,6 +535,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                     domains = config['include']
                 domains.append(config['name'])
 
+                filenames.remove(self.config_filename)
+
             for f in filenames:
                 self._index_file(root, f, domains)
 
