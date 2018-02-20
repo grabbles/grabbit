@@ -41,7 +41,7 @@ def bids_layout(request):
 def stamp_layout():
     root = os.path.join(DIRNAME, 'data', 'valuable_stamps')
     config = os.path.join(DIRNAME, 'specs', 'stamps.json')
-    return Layout(root, config)
+    return Layout(root, config, config_filename='dir_config.json')
 
 
 @pytest.fixture(scope='module')
@@ -335,6 +335,24 @@ class TestLayout:
         assert set(bids_layout.files.keys()) == set(lc.files.keys())
         assert set(bids_layout.entities.keys()) == set(lc.entities.keys())
 
+    def test_multiple_domains(self, stamp_layout):
+        layout = stamp_layout.clone()
+        assert {'stamps', 'usa_stamps'} == set(layout.domains.keys())
+        usa = layout.domains['usa_stamps']
+        general = layout.domains['stamps']
+        assert len(usa.files) == 3
+        assert len(layout.files) == len(general.files)
+        assert not set(usa.files) - set(general.files)
+        assert layout.entities['usa_stamps.name'] == usa.entities['name']
+        assert layout.entities['stamps.name'] == general.entities['name']
+        assert usa.entities['name'] != general.entities['name']
+        f = layout.get(name='5c_Francis_E_Willard', return_type='obj')[0]
+        assert f.entities == {'name': '5c_Francis_E_Willard',
+                              'value': '1dollar'}
+
+    def test_get_by_domain(self, stamp_layout):
+        files = stamp_layout.get(domains='usa_stamps')
+        assert len(files) == 3
 
 def test_merge_layouts(bids_layout, stamp_layout):
     layout = merge_layouts([bids_layout, stamp_layout])

@@ -33,7 +33,8 @@ class File(object):
     def domains(self):
         return tuple(set([t.entity.domain.name for t in self.tags.values()]))
 
-    def _matches(self, entities=None, extensions=None, regex_search=False):
+    def _matches(self, entities=None, extensions=None, domains=None,
+                 regex_search=False):
         """
         Checks whether the file matches all of the passed entities and
         extensions.
@@ -41,6 +42,7 @@ class File(object):
         Args:
             entities (dict): A dictionary of entity names -> regex patterns.
             extensions (str, list): One or more file extensions to allow.
+            domains (str, list): One or more domains the file must match.
             regex_search (bool): Whether to require exact match (False) or
                 regex search (True) when comparing the query string to each
                 entity.
@@ -52,6 +54,11 @@ class File(object):
                 extensions = [extensions]
             extensions = '(' + '|'.join(extensions) + ')$'
             if re.search(extensions, self.path) is None:
+                return False
+
+        if domains is not None:
+            domains = listify(domains)
+            if not set(self.domains) & set(domains):
                 return False
 
         if entities is not None:
@@ -662,7 +669,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         filters = {}
         filters.update(kwargs)
         for filename, file in self.files.items():
-            if not file._matches(filters, extensions, regex_search):
+            if not file._matches(filters, extensions, domains, regex_search):
                 continue
             result.append(file)
 
