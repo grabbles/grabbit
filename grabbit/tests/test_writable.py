@@ -147,12 +147,13 @@ class TestWritableLayout:
                                          '/sess-2'
                                          '/r-1'
                                          '/type-bold'
-                                         '/task-rest_acq.nii.gz')
+                                         '/task-rest.nii.gz')
         example_file2 = join(str(tmpdir), 'sub-04'
                                           '/sess-2'
                                           '/r-1'
                                           '/type-bold'
-                                          '/task-rest_acq.nii.gz')
+                                          '/task-rest.nii.gz')
+
         assert exists(example_file)
         assert not exists(example_file2)
 
@@ -166,7 +167,7 @@ class TestWritableLayout:
                                          '/sess-2'
                                          '/r-1'
                                          '/type-bold'
-                                         '/task-rest_acq.nii.gz')
+                                         '/task-rest.nii.gz')
         assert exists(example_file)
         assert exists(example_file2)
 
