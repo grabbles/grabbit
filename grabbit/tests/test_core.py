@@ -335,6 +335,13 @@ class TestLayout:
         assert set(bids_layout.files.keys()) == set(lc.files.keys())
         assert set(bids_layout.entities.keys()) == set(lc.entities.keys())
 
+    def test_excludes(self, tmpdir):
+        root = tmpdir.mkdir("ohmyderivatives").mkdir("ds")
+        config = os.path.join(DIRNAME, 'specs', 'test.json')
+        layout = Layout(str(root), config, regex_search=True)
+        assert layout._check_inclusions(str(root.join("ohmyimportantfile")))
+        assert not layout._check_inclusions(str(root.join("badbadderivatives")))
+
     def test_multiple_domains(self, stamp_layout):
         layout = stamp_layout.clone()
         assert {'stamps', 'usa_stamps'} == set(layout.domains.keys())
