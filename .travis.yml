@@ -8,17 +8,14 @@ python:
 install:
   - pip install pip --upgrade
   - pip install pytest --upgrade
-  - pip install codecov runipy
+  - pip install runipy coveralls pytest-cov
   - pip install -e '.'
-  - pip install flake8
 
 script:
   - PYTHONPATH=$PWD coverage run `which py.test` grabbit
   - python setup.py install  # test installation
   - cd examples; PYTHONPATH=.. runipy *.ipynb  # test example notebooks to run and not fail
-  # for now flaking only the stub.py
-  # - flake8 grabbit
+  - py.test --pyargs grabbit --cov-report term-missing --cov=grabbit
 
 after_success:
-  - codecov
-
+  - coveralls
