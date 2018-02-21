@@ -254,7 +254,8 @@ class LayoutMetaclass(type):
 
         paths = listify(path)
         if len(paths) == 1:
-            return super(LayoutMetaclass, cls).__call__(path, *args, **kwargs)
+            return super(LayoutMetaclass, cls).__call__(paths[0], *args,
+                                                        **kwargs)
         layouts = []
         for p in paths:
             layout = super(LayoutMetaclass, cls).__call__(p, *args, **kwargs)
