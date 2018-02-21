@@ -1,4 +1,5 @@
 {
+  "name": "test_with_mapper",
   "index" : {
     "exclude" : [".*derivatives.*"]
   },
@@ -25,11 +26,11 @@
     },
     {
       "name": "task",
-      "pattern": "task-(.*?)-"
+      "pattern": "task-(.*?)_"
     },
     {
       "name": "acquisition",
-      "pattern": "acq-(.*?)-"
+      "pattern": "acq-(.*?)_"
     },
     {
       "name": "bval",

@@ -1,5 +1,5 @@
 import pytest
-from grabbit import File, Entity, Layout, merge_layouts
+from grabbit import File, Entity, Layout, Tag, merge_layouts
 import os
 import posixpath as psp
 import tempfile
@@ -30,15 +30,18 @@ def bids_layout(request):
         hdfs = pytest.importorskip("hdfs")
         from grabbit.extensions import HDFSLayout
         client = hdfs.Config().get_client()
-        root = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'data', '7t_trt')
-        config = psp.join('hdfs://localhost:9000{0}'.format(client.root), 'specs', 'test.json')
+        root = psp.join('hdfs://localhost:9000{0}'.format(
+            client.root), 'data', '7t_trt')
+        config = psp.join('hdfs://localhost:9000{0}'.format(
+            client.root), 'specs', 'test.json')
         return HDFSLayout(root, config, regex_search=True)
+
 
 @pytest.fixture(scope='module')
 def stamp_layout():
     root = os.path.join(DIRNAME, 'data', 'valuable_stamps')
     config = os.path.join(DIRNAME, 'specs', 'stamps.json')
-    return Layout(root, config)
+    return Layout(root, config, config_filename='dir_config.json')
 
 
 @pytest.fixture(scope='module')
@@ -63,7 +66,7 @@ class TestFile:
         assert file._matches()
         assert file._matches(extensions='nii.gz')
         assert not file._matches(extensions=['.txt', '.rtf'])
-        file.entities = {'task': 'rest', 'run': '2'}
+        file.tags = {'task': Tag(None, 'rest'), 'run': Tag(None, '2')}
         assert file._matches(entities={'task': 'rest', 'run': 2})
         assert not file._matches(entities={'task': 'rest', 'run': 4})
         assert not file._matches(entities={'task': 'st'})
@@ -75,7 +78,7 @@ class TestFile:
                              regex_search=True)
 
     def test_named_tuple(self, file):
-        file.entities = {'attrA': 'apple', 'attrB': 'banana'}
+        file.tags = {'attrA': Tag(None, 'apple'), 'attrB': Tag(None, 'banana')}
         tup = file.as_named_tuple()
         assert(tup.filename == file.path)
         assert isinstance(tup, tuple)
@@ -98,7 +101,7 @@ class TestEntity:
         tmpdir.mkdir("tmp").join(filename).write("###")
         f = File(os.path.join(str(tmpdir), filename))
         e = Entity('avaricious', 'aardvark-(\d+)')
-        e.matches(f)
+        e.matches(f, update_file=True)
         assert 'avaricious' in f.entities
         assert f.entities['avaricious'] == '4'
 
@@ -261,7 +264,7 @@ class TestLayout:
         assert targ not in layout_include.files
 
         with pytest.raises(ValueError):
-            layout_include._load_config({'entities': [],
+            layout_include._load_domain({'entities': [],
                                          'index': {'include': 'test',
                                                    'exclude': 'test'}})
 
@@ -273,9 +276,11 @@ class TestLayout:
             index = json.load(infile)
         assert len(index) == len(bids_layout.files)
         # Check that entities for first 10 files match
+        files = list(bids_layout.files.values())
         for i in range(10):
-            f = list(bids_layout.files.values())[i]
-            assert f.entities == index[f.path]
+            f = files[i]
+            entities = {v.entity.id: v.value for v in f.tags.values()}
+            assert entities == index[f.path]
         os.unlink(tmp)
 
     def test_load_index(self, bids_layout):
@@ -324,22 +329,52 @@ class TestLayout:
     def test_clone(self, bids_layout):
         lc = bids_layout.clone()
         attrs = ['root', 'mandatory', 'dynamic_getters', 'regex_search',
-                 'filtering_regex', 'entity_mapper']
+                 'entity_mapper']
         for a in attrs:
             assert getattr(bids_layout, a) == getattr(lc, a)
         assert set(bids_layout.files.keys()) == set(lc.files.keys())
         assert set(bids_layout.entities.keys()) == set(lc.entities.keys())
+
+    def test_multiple_domains(self, stamp_layout):
+        layout = stamp_layout.clone()
+        assert {'stamps', 'usa_stamps'} == set(layout.domains.keys())
+        usa = layout.domains['usa_stamps']
+        general = layout.domains['stamps']
+        assert len(usa.files) == 3
+        assert len(layout.files) == len(general.files)
+        assert not set(usa.files) - set(general.files)
+        assert layout.entities['usa_stamps.name'] == usa.entities['name']
+        assert layout.entities['stamps.name'] == general.entities['name']
+        assert usa.entities['name'] != general.entities['name']
+        f = layout.get(name='5c_Francis_E_Willard', return_type='obj')[0]
+        assert f.entities == {'name': '5c_Francis_E_Willard',
+                              'value': '1dollar'}
+
+    def test_get_by_domain(self, stamp_layout):
+        files = stamp_layout.get(domains='usa_stamps')
+        assert len(files) == 3
+        files = stamp_layout.get(domains=['nonexistent', 'doms'])
+        assert not files
+        files = stamp_layout.get(domains='usa_stamps', value='35',
+                                 regex_search=True)
+        assert len(files) == 1
+        files = stamp_layout.get(value='35', regex_search=True)
+        assert len(files) == 2
 
 
 def test_merge_layouts(bids_layout, stamp_layout):
     layout = merge_layouts([bids_layout, stamp_layout])
     assert len(layout.files) == len(bids_layout.files) + \
         len(stamp_layout.files)
-    assert 'country' in layout.entities
-    assert 'subject' in layout.entities
+    assert 'stamps.country' in layout.entities
+    assert 'test.subject' in layout.entities
+    dom = layout.domains['stamps']
+    assert 'country' in dom.entities
+    dom = layout.domains['test']
+    assert 'subject' in dom.entities
 
     # Make sure first Layout was cloned and not passed by reference
-    patt = layout.entities['subject'].pattern
-    assert patt == bids_layout.entities['subject'].pattern
-    bids_layout.entities['subject'].pattern = "meh"
+    patt = layout.entities['test.subject'].pattern
+    assert patt == bids_layout.entities['test.subject'].pattern
+    bids_layout.entities['test.subject'].pattern = "meh"
     assert patt != "meh"
