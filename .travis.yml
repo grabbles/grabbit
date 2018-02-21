@@ -4,18 +4,17 @@ sudo: false
 python:
   - "2.7"
   - "3.5"
+  - "3.6"
 
 install:
-  - pip install pip --upgrade
-  - pip install pytest --upgrade
+  - pip install --upgrade pip pytest
   - pip install runipy coveralls pytest-cov
   - pip install -e '.'
 
 script:
   - PYTHONPATH=$PWD coverage run `which py.test` grabbit
-  - python setup.py install  # test installation
-  - cd examples; PYTHONPATH=.. runipy *.ipynb  # test example notebooks to run and not fail
   - py.test --cov-report term-missing --cov=grabbit
+  - cd examples; PYTHONPATH=.. runipy *.ipynb  # test example notebooks to run and not fail
 
 after_success:
   - coveralls
