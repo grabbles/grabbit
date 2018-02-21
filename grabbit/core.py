@@ -396,6 +396,12 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         filename = f if isinstance(f, six.string_types) else f.path
 
+        if os.path.isabs(filename) and filename.startswith(self.root + os.path.sep):
+            # for filenames under the root - analyze relative path to avoid
+            # bringing injustice to the grandkids of some unfortunately named
+            # root directories.
+            filename = os.path.relpath(filename, self.root)
+
         if domains is None:
             domains = list(self.domains.keys())
 
