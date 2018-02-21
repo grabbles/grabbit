@@ -15,7 +15,7 @@ script:
   - PYTHONPATH=$PWD coverage run `which py.test` grabbit
   - python setup.py install  # test installation
   - cd examples; PYTHONPATH=.. runipy *.ipynb  # test example notebooks to run and not fail
-  - py.test --pyargs grabbit --cov-report term-missing --cov=grabbit
+  - py.test --cov-report term-missing --cov=grabbit
 
 after_success:
   - coveralls
