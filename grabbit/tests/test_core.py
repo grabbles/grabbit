@@ -200,7 +200,7 @@ class TestLayout:
         assert len(result) == 1
         assert 'phasediff.json' in result[0].filename
         assert hasattr(result[0], 'run')
-        assert result[0].run == '1'
+        assert result[0].run == 1
 
         # With exact matching...
         result = bids_layout.get(subject='1', run=1, session=1,

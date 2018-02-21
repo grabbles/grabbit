@@ -154,7 +154,7 @@ Tag = namedtuple('Tag', ['entity', 'value'])
 class Entity(object):
 
     def __init__(self, name, pattern=None, domain=None, mandatory=False,
-                 directory=None, map_func=None, **kwargs):
+                 directory=None, map_func=None, dtype=None, **kwargs):
         """
         Represents a single entity defined in the JSON config.
 
@@ -171,6 +171,10 @@ class Entity(object):
                 defined .pattern).
             domain (Domain): The Domain the Entity belongs to.
             kwargs (dict): Additional keyword arguments.
+            dtype (str): The optional data type of the Entity values. Must be
+                one of 'int', 'float', 'bool', or 'str'. If None, no type
+                enforcement will be attempted, which means the dtype of the
+                value may be unpredictable.
         """
         if pattern is None and map_func is None:
             raise ValueError("Invalid specification for Entity '%s'; no "
@@ -183,9 +187,17 @@ class Entity(object):
         self.mandatory = mandatory
         self.directory = directory
         self.map_func = map_func
+        self.kwargs = kwargs
+
+        if isinstance(dtype, six.string_types):
+            dtype = eval(dtype)
+        if dtype not in [str, float, int, bool, None]:
+            raise ValueError("Invalid dtype '%s'. Must be one of int, float, "
+                             "bool, or str." % dtype)
+        self.dtype = dtype
+
         self.files = {}
         self.regex = re.compile(pattern) if pattern is not None else None
-        self.kwargs = kwargs
         self.id = '.'.join([getattr(domain, 'name', ''), name])
 
     def __iter__(self):
@@ -223,6 +235,8 @@ class Entity(object):
             return False
 
         if update_file:
+            if self.dtype is not None:
+                val = self.dtype(val)
             f.tags[self.name] = Tag(self, val)
 
         return True
