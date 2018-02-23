@@ -368,6 +368,14 @@ class TestLayout:
         files = stamp_layout.get(value='35', regex_search=True)
         assert len(files) == 2
 
+    def test_parse_file_entities(self, bids_layout):
+        filename = 'sub-03_ses-07_run-4_sekret.nii.gz'
+        with pytest.raises(ValueError):
+            bids_layout.parse_file_entities(filename)
+        ents = bids_layout.parse_file_entities(filename, domains=['test'])
+        assert ents == {'subject': '03', 'session': '7', 'run': 4,
+                        'type': 'sekret'}
+
 
 def test_merge_layouts(bids_layout, stamp_layout):
     layout = merge_layouts([bids_layout, stamp_layout])
