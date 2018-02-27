@@ -154,7 +154,7 @@ Tag = namedtuple('Tag', ['entity', 'value'])
 class Entity(object):
 
     def __init__(self, name, pattern=None, domain=None, mandatory=False,
-                 directory=None, map_func=None, **kwargs):
+                 directory=None, map_func=None, dtype=None, **kwargs):
         """
         Represents a single entity defined in the JSON config.
 
@@ -171,6 +171,10 @@ class Entity(object):
                 defined .pattern).
             domain (Domain): The Domain the Entity belongs to.
             kwargs (dict): Additional keyword arguments.
+            dtype (str): The optional data type of the Entity values. Must be
+                one of 'int', 'float', 'bool', or 'str'. If None, no type
+                enforcement will be attempted, which means the dtype of the
+                value may be unpredictable.
         """
         if pattern is None and map_func is None:
             raise ValueError("Invalid specification for Entity '%s'; no "
@@ -183,9 +187,17 @@ class Entity(object):
         self.mandatory = mandatory
         self.directory = directory
         self.map_func = map_func
+        self.kwargs = kwargs
+
+        if isinstance(dtype, six.string_types):
+            dtype = eval(dtype)
+        if dtype not in [str, float, int, bool, None]:
+            raise ValueError("Invalid dtype '%s'. Must be one of int, float, "
+                             "bool, or str." % dtype)
+        self.dtype = dtype
+
         self.files = {}
         self.regex = re.compile(pattern) if pattern is not None else None
-        self.kwargs = kwargs
         self.id = '.'.join([getattr(domain, 'name', ''), name])
 
     def __iter__(self):
@@ -223,6 +235,8 @@ class Entity(object):
             return False
 
         if update_file:
+            if self.dtype is not None:
+                val = self.dtype(val)
             f.tags[self.name] = Tag(self, val)
 
         return True
@@ -254,7 +268,8 @@ class LayoutMetaclass(type):
 
         paths = listify(path)
         if len(paths) == 1:
-            return super(LayoutMetaclass, cls).__call__(path, *args, **kwargs)
+            return super(LayoutMetaclass, cls).__call__(paths[0], *args,
+                                                        **kwargs)
         layouts = []
         for p in paths:
             layout = super(LayoutMetaclass, cls).__call__(p, *args, **kwargs)
@@ -355,9 +370,11 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                           "the config file for this domain includes a "
                           "'root' key." % config['name'])
             config['root'] = self.root
+        elif config['root'] == '.':
+            config['root'] = self.root
         elif not isabs(config['root']):
             _root = config['root']
-            config['root'] = abspath(join(self.root, config['root']))
+            config['root'] = join(self.root, config['root'])
             if not exists(config['root']):
                 msg = ("Relative path '%s' for domain '%s' interpreted as '%s'"
                        ", but this directory doesn't exist. Either specify the"
@@ -458,7 +475,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             return f.domains
         return [d.name for d in self.domains.values() if f.startswith(d.root)]
 
-    def _index_file(self, root, f, domains=None):
+    def _index_file(self, root, f, domains=None, update_layout=True):
 
         # If domains aren't explicitly passed, figure out what applies
         if domains is None:
@@ -485,12 +502,15 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         # Only keep Files that match at least one Entity, and all
         # mandatory Entities
-        if file_ents and not (self.mandatory - set(file_ents)):
+        if update_layout and file_ents and not (self.mandatory
+                                                - set(file_ents)):
             self.files[f.path] = f
             # Bind the File to all of the matching entities
             for name, tag in f.tags.items():
                 ent_id = tag.entity.id
                 self.entities[ent_id].add_file(f.path, tag.value)
+
+        return f
 
     def _find_entity(self, entity):
         ''' Find an Entity instance by name. Checks both name and id fields.'''
@@ -850,6 +870,17 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def clone(self):
         return deepcopy(self)
+
+    def parse_file_entities(self, filename, domains=None):
+        root, f = dirname(filename), basename(filename)
+        if not root and domains is None:
+            raise ValueError("If a relative path is provided as the filename "
+                             "argument, you *must* specify the names of the "
+                             "domains whose entities are to be extracted. "
+                             "Available domains for the current layout are: %s"
+                             % list(self.domains.keys()))
+        result = self._index_file(root, f, domains, update_layout=False)
+        return result.entities
 
     def build_path(self, source, path_patterns=None, strict=False):
         ''' Constructs a target filename for a file or dictionary of entities.

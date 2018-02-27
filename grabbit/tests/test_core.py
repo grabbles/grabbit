@@ -200,7 +200,7 @@ class TestLayout:
         assert len(result) == 1
         assert 'phasediff.json' in result[0].filename
         assert hasattr(result[0], 'run')
-        assert result[0].run == '1'
+        assert result[0].run == 1
 
         # With exact matching...
         result = bids_layout.get(subject='1', run=1, session=1,
@@ -367,6 +367,14 @@ class TestLayout:
         assert len(files) == 1
         files = stamp_layout.get(value='35', regex_search=True)
         assert len(files) == 2
+
+    def test_parse_file_entities(self, bids_layout):
+        filename = 'sub-03_ses-07_run-4_sekret.nii.gz'
+        with pytest.raises(ValueError):
+            bids_layout.parse_file_entities(filename)
+        ents = bids_layout.parse_file_entities(filename, domains=['test'])
+        assert ents == {'subject': '03', 'session': '7', 'run': 4,
+                        'type': 'sekret'}
 
 
 def test_merge_layouts(bids_layout, stamp_layout):
