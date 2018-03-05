@@ -552,7 +552,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             if self.config_filename in filenames:
                 config_path = os.path.join(root, self.config_filename)
                 config = json.load(open(config_path, 'r'))
-                self._load_domain(config)
+                root = config.get('root', root)
+                self._load_domain(config, root=root)
 
                 # Filter Domains if current dir's config file has an
                 # include directive
