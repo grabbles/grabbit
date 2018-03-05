@@ -122,6 +122,17 @@ class File(object):
 class Domain(object):
 
     def __init__(self, name, config, root):
+        """
+        A set of rules that applies to one or more directories
+        within a Layout.
+
+        Args:
+            name (str): The name of the Domain.
+            config (dict): The configuration dictionary that defines the
+                entities and paths for the current domain.
+            root (str, list): The root directory or directories to which the
+                Domain's rules applies. Can be either a single path, or a list.
+        """
 
         self.name = name
         self.config = config
@@ -142,9 +153,19 @@ class Domain(object):
             self.path_patterns += listify(config['default_path_patterns'])
 
     def add_entity(self, ent):
+        ''' Add an Entity.
+
+        Args:
+            ent (Entity): The Entity to add.
+        '''
         self.entities[ent.name] = ent
 
     def add_file(self, file):
+        ''' Add a file to tracking.
+
+        Args:
+            file (File): The File to add to tracking.
+        '''
         self.files.append(file)
 
 
@@ -287,10 +308,13 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         Args:
             path (str): The root path of the layout.
-            config (str, list): The path to the JSON config file that defines
-                the entities and paths for the current layout. If a list is
-                provided, treat as several paths to config files, creating
-                one master config with all of them merged (in order).
+            config (str, list, dict): A specification of the configuration
+                file(s) defining domains to use in the Layout. Must be one of:
+
+                - A dictionary containing config information
+                - A string giving the path to a JSON file containing the config
+                - A list, where each element is one of the above
+
             index (str): Optional path to a saved index file. If a valid value
                 is passed, this index is used to populate Files and Entities,
                 and the normal indexing process (which requires scanning all
