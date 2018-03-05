@@ -413,7 +413,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         filename = f if isinstance(f, six.string_types) else f.path
 
-        if os.path.isabs(filename) and filename.startswith(self.root + os.path.sep):
+        if os.path.isabs(filename) and filename.startswith(
+                self.root + os.path.sep):
             # for filenames under the root - analyze relative path to avoid
             # bringing injustice to the grandkids of some unfortunately named
             # root directories.
@@ -473,7 +474,13 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def _get_domains_for_file(self, f):
         if isinstance(f, File):
             return f.domains
-        return [d.name for d in self.domains.values() if f.startswith(d.root)]
+        domains = []
+        for d in self.domains.values():
+            for path in listify(d.root):
+                if f.startswith(path):
+                    domains.append(d.name)
+                    break
+        return domains
 
     def _index_file(self, root, f, domains=None, update_layout=True):
 
@@ -502,8 +509,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         # Only keep Files that match at least one Entity, and all
         # mandatory Entities
-        if update_layout and file_ents and not (self.mandatory
-                                                - set(file_ents)):
+        if update_layout and file_ents and not (self.mandatory -
+                                                set(file_ents)):
             self.files[f.path] = f
             # Bind the File to all of the matching entities
             for name, tag in f.tags.items():
