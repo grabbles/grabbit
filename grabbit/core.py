@@ -556,8 +556,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
                 # Filter Domains if current dir's config file has an
                 # include directive
-                if 'include' in config:
-                    missing = set(config['include']) - set(domains)
+                if 'domains' in config:
+                    missing = set(config['domains']) - set(domains)
                     if missing:
                         msg = ("Missing configs '%s' specified in include "
                                "directive of config '%s'. Please make sure "
@@ -565,7 +565,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                                "directory %s.") % (missing, config['name'],
                                                    root)
                         raise ValueError(msg)
-                    domains = config['include']
+                    domains = config['domains']
                 domains.append(config['name'])
 
                 filenames.remove(self.config_filename)
