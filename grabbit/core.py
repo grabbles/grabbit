@@ -139,15 +139,15 @@ class Domain(object):
         self.root = root
         self.entities = {}
         self.files = []
-        self.filtering_regex = {}
         self.path_patterns = []
 
-        if 'index' in config:
-            self.filtering_regex = config['index']
-            if self.filtering_regex.get('include') and \
-               self.filtering_regex.get('exclude'):
-                raise ValueError("You can only define either include or "
-                                 "exclude regex, not both.")
+        self.include = self.config.get('include', [])
+        self.exclude = self.config.get('exclude', [])
+
+        if self.include and self.exclude:
+            raise ValueError("The 'include' and 'exclude' arguments cannot "
+                             "both be set. Please pass at most one of these "
+                             "for domain '%s'." % self.name)
 
         if 'default_path_patterns' in config:
             self.path_patterns += listify(config['default_path_patterns'])
@@ -450,7 +450,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         for dom in domains:
             dom = self.domains[dom]
             # If file matches any include regex, then True
-            include_regex = dom.filtering_regex.get('include', [])
+            include_regex = dom.include
             if include_regex:
                 for regex in include_regex:
                     if re.match(regex, filename):
@@ -459,7 +459,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                     return False
             else:
                 # If file matches any excldue regex, then false
-                for regex in dom.filtering_regex.get('exclude', []):
+                for regex in dom.exclude:
                     if re.match(regex, filename, flags=re.UNICODE):
                         return False
 

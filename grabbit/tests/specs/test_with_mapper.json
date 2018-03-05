@@ -1,8 +1,6 @@
 {
   "name": "test_with_mapper",
-  "index" : {
-    "exclude" : [".*derivatives.*"]
-  },
+  "exclude" : [".*derivatives.*"],
   "entities": [
     {
       "name": "subject",
