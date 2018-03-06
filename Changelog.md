@@ -1,3 +1,14 @@
+0.1.1 (March 5, 2018)
+This release adds several improvements and fixes:
+* Introduces "Domains", which allow mapping multiple configs to multiple directories (#49)
+* Refactored file writing functionality (#41, #42)
+* Adds coveralls support (#54)
+* Adds ability to parse entities in filenames without updating Layout index (#52)
+* Adds ability to specify Entity dtypes (#52)
+* Simplified/revised config file fields (#54)
+* New global file-filtering arguments (include and exclude; #54)
+* Various minor bug fixes and improvements (#43, #44, #48)
+
 0.1.0 (January 10, 2018)
 This release adds several new features. In the interest of making the .PATCH version number meaningful, it also bumps the version to 0.1.0. New features:
 - Enables flexible file path construction and writing (thanks to @qmac)
