@@ -12,9 +12,7 @@ install:
   - pip install -e '.'
 
 script:
-  - PYTHONPATH=$PWD coverage run `which py.test` grabbit
-  - py.test --cov-report term-missing --cov=grabbit
-  - cd examples; PYTHONPATH=.. runipy *.ipynb  # test example notebooks to run and not fail
+  - py.test --pyargs grabbit --cov-report term-missing --cov=grabbit
 
 after_success:
   - coveralls

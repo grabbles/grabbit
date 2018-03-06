@@ -1,5 +1,3 @@
 [run]
-source =
-	grabbit/
-omit =
-    */tests/*
+include = grabbit/
+omit = */tests/*
