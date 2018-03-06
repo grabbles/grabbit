@@ -122,29 +122,50 @@ class File(object):
 class Domain(object):
 
     def __init__(self, name, config, root):
+        """
+        A set of rules that applies to one or more directories
+        within a Layout.
+
+        Args:
+            name (str): The name of the Domain.
+            config (dict): The configuration dictionary that defines the
+                entities and paths for the current domain.
+            root (str, list): The root directory or directories to which the
+                Domain's rules applies. Can be either a single path, or a list.
+        """
 
         self.name = name
         self.config = config
         self.root = root
         self.entities = {}
         self.files = []
-        self.filtering_regex = {}
         self.path_patterns = []
 
-        if 'index' in config:
-            self.filtering_regex = config['index']
-            if self.filtering_regex.get('include') and \
-               self.filtering_regex.get('exclude'):
-                raise ValueError("You can only define either include or "
-                                 "exclude regex, not both.")
+        self.include = listify(self.config.get('include', []))
+        self.exclude = listify(self.config.get('exclude', []))
+
+        if self.include and self.exclude:
+            raise ValueError("The 'include' and 'exclude' arguments cannot "
+                             "both be set. Please pass at most one of these "
+                             "for domain '%s'." % self.name)
 
         if 'default_path_patterns' in config:
             self.path_patterns += listify(config['default_path_patterns'])
 
     def add_entity(self, ent):
+        ''' Add an Entity.
+
+        Args:
+            ent (Entity): The Entity to add.
+        '''
         self.entities[ent.name] = ent
 
     def add_file(self, file):
+        ''' Add a file to tracking.
+
+        Args:
+            file (File): The File to add to tracking.
+        '''
         self.files.append(file)
 
 
@@ -281,16 +302,20 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
                  absolute_paths=True, regex_search=False, entity_mapper=None,
-                 path_patterns=None, config_filename='layout.json'):
+                 path_patterns=None, config_filename='layout.json',
+                 include=None, exclude=None):
         """
         A container for all the files and metadata found at the specified path.
 
         Args:
             path (str): The root path of the layout.
-            config (str, list): The path to the JSON config file that defines
-                the entities and paths for the current layout. If a list is
-                provided, treat as several paths to config files, creating
-                one master config with all of them merged (in order).
+            config (str, list, dict): A specification of the configuration
+                file(s) defining domains to use in the Layout. Must be one of:
+
+                - A dictionary containing config information
+                - A string giving the path to a JSON file containing the config
+                - A list, where each element is one of the above
+
             index (str): Optional path to a saved index file. If a valid value
                 is passed, this index is used to populate Files and Entities,
                 and the normal indexing process (which requires scanning all
@@ -327,7 +352,19 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 Every directory will be scanned for this file, and if found,
                 the config file will be read in and added to the list of
                 configs.
+            include (str, list): A string or list specifying regexes used to
+                globally filter files when indexing. A file or directory
+                *must* match at least of the passed values in order to be
+                retained in the index. Cannot be used together with 'exclude'.
+            exclude (str, list): A string or list specifying regexes used to
+                globally filter files when indexing. If a file or directory
+                *must* matches any of the passed values, it will be dropped
+                from indexing. Cannot be used together with 'include'.
         """
+
+        if include is not None and exclude is not None:
+            raise ValueError("You cannot specify both the include and exclude"
+                             " arguments. Please pass at most one of these.")
 
         self.root = abspath(path) if absolute_paths else path
         self.entities = OrderedDict()
@@ -339,6 +376,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         self.path_patterns = path_patterns if path_patterns else []
         self.config_filename = config_filename
         self.domains = OrderedDict()
+        self.include = listify(include or [])
+        self.exclude = listify(exclude or [])
 
         if config is not None:
             for c in listify(config):
@@ -413,7 +452,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         filename = f if isinstance(f, six.string_types) else f.path
 
-        if os.path.isabs(filename) and filename.startswith(self.root + os.path.sep):
+        if os.path.isabs(filename) and filename.startswith(
+                self.root + os.path.sep):
             # for filenames under the root - analyze relative path to avoid
             # bringing injustice to the grandkids of some unfortunately named
             # root directories.
@@ -422,19 +462,20 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         if domains is None:
             domains = list(self.domains.keys())
 
+        domains = [self.domains[dom] for dom in domains]
+
+        # Inject the Layout at the first position for global include/exclude
+        domains.insert(0, self)
         for dom in domains:
-            dom = self.domains[dom]
             # If file matches any include regex, then True
-            include_regex = dom.filtering_regex.get('include', [])
-            if include_regex:
-                for regex in include_regex:
+            if dom.include:
+                for regex in dom.include:
                     if re.match(regex, filename):
-                        break
-                else:
-                    return False
+                        return True
+                return False
             else:
-                # If file matches any excldue regex, then false
-                for regex in dom.filtering_regex.get('exclude', []):
+                # If file matches any exclude regex, then False
+                for regex in dom.exclude:
                     if re.match(regex, filename, flags=re.UNICODE):
                         return False
 
@@ -473,7 +514,13 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def _get_domains_for_file(self, f):
         if isinstance(f, File):
             return f.domains
-        return [d.name for d in self.domains.values() if f.startswith(d.root)]
+        domains = []
+        for d in self.domains.values():
+            for path in listify(d.root):
+                if f.startswith(path):
+                    domains.append(d.name)
+                    break
+        return domains
 
     def _index_file(self, root, f, domains=None, update_layout=True):
 
@@ -502,8 +549,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         # Only keep Files that match at least one Entity, and all
         # mandatory Entities
-        if update_layout and file_ents and not (self.mandatory
-                                                - set(file_ents)):
+        if update_layout and file_ents and not (self.mandatory -
+                                                set(file_ents)):
             self.files[f.path] = f
             # Bind the File to all of the matching entities
             for name, tag in f.tags.items():
@@ -552,12 +599,13 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             if self.config_filename in filenames:
                 config_path = os.path.join(root, self.config_filename)
                 config = json.load(open(config_path, 'r'))
-                self._load_domain(config)
+                root = config.get('root', root)
+                self._load_domain(config, root=root)
 
                 # Filter Domains if current dir's config file has an
                 # include directive
-                if 'include' in config:
-                    missing = set(config['include']) - set(domains)
+                if 'domains' in config:
+                    missing = set(config['domains']) - set(domains)
                     if missing:
                         msg = ("Missing configs '%s' specified in include "
                                "directive of config '%s'. Please make sure "
@@ -565,7 +613,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                                "directory %s.") % (missing, config['name'],
                                                    root)
                         raise ValueError(msg)
-                    domains = config['include']
+                    domains = config['domains']
                 domains.append(config['name'])
 
                 filenames.remove(self.config_filename)

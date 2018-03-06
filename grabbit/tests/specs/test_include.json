@@ -1,8 +1,6 @@
 {
   "name": "test_with_includes",
-  "index" : {
-    "include" : ["sub-(\\d+)", "ses-.*", "func", "fmap", ".*\\..*"]
-  },
+  "include" : ["sub-(\\d+)", "ses-.*", "func", "fmap", ".*\\..*"],
   "entities": [
     {
       "name": "subject",

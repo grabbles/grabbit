@@ -1,6 +1,7 @@
 import pytest
 from grabbit import File, Entity, Layout, Tag, merge_layouts
 import os
+from os.path import join
 import posixpath as psp
 import tempfile
 import json
@@ -14,17 +15,17 @@ def file(tmpdir):
     testfile = 'sub-03_ses-2_task-rest_acq-fullbrain_run-2_bold.nii.gz'
     fn = tmpdir.mkdir("tmp").join(testfile)
     fn.write('###')
-    return File(os.path.join(str(fn)))
+    return File(join(str(fn)))
 
 
 @pytest.fixture(scope='module', params=['local', 'hdfs'])
 def bids_layout(request):
     if request.param == 'local':
-        root = os.path.join(DIRNAME, 'data', '7t_trt')
+        root = join(DIRNAME, 'data', '7t_trt')
         # note about test.json:
         # in this test.json 'subject' regex was left to contain possible
         # leading 0; the other fields (run, session) has leading 0 stripped
-        config = os.path.join(DIRNAME, 'specs', 'test.json')
+        config = join(DIRNAME, 'specs', 'test.json')
         return Layout(root, config, regex_search=True)
     else:
         hdfs = pytest.importorskip("hdfs")
@@ -39,15 +40,15 @@ def bids_layout(request):
 
 @pytest.fixture(scope='module')
 def stamp_layout():
-    root = os.path.join(DIRNAME, 'data', 'valuable_stamps')
-    config = os.path.join(DIRNAME, 'specs', 'stamps.json')
+    root = join(DIRNAME, 'data', 'valuable_stamps')
+    config = join(DIRNAME, 'specs', 'stamps.json')
     return Layout(root, config, config_filename='dir_config.json')
 
 
 @pytest.fixture(scope='module')
 def layout_include(request):
-    root = os.path.join(DIRNAME, 'data', '7t_trt')
-    config = os.path.join(DIRNAME, 'specs', 'test_include.json')
+    root = join(DIRNAME, 'data', '7t_trt')
+    config = join(DIRNAME, 'specs', 'test_include.json')
     return Layout(root, config, regex_search=True)
 
 
@@ -99,7 +100,7 @@ class TestEntity:
     def test_matches(self, tmpdir):
         filename = "aardvark-4-reporting-for-duty.txt"
         tmpdir.mkdir("tmp").join(filename).write("###")
-        f = File(os.path.join(str(tmpdir), filename))
+        f = File(join(str(tmpdir), filename))
         e = Entity('avaricious', 'aardvark-(\d+)')
         e.matches(f, update_file=True)
         assert 'avaricious' in f.entities
@@ -134,15 +135,37 @@ class TestLayout:
         assert isinstance(bids_layout.mandatory, set)
         assert not bids_layout.dynamic_getters
 
+    def test_init_with_include_arg(self, bids_layout):
+        root = join(DIRNAME, 'data', '7t_trt')
+        config = join(DIRNAME, 'specs', 'test.json')
+        layout = Layout(root, config, regex_search=True, include='sub-\d*')
+        target = join(root, "dataset_description.json")
+        assert target in bids_layout.files
+        assert target not in layout.files
+        assert join(root, "sub-01", "sub-01_sessions.tsv") in layout.files
+        with pytest.raises(ValueError):
+            layout = Layout(root, config, include='sub-\d*', exclude="meh")
+
+    def test_init_with_exclude_arg(self, bids_layout):
+        root = join(DIRNAME, 'data', '7t_trt')
+        config = join(DIRNAME, 'specs', 'test.json')
+        layout = Layout(root, config, regex_search=True, exclude='sub-\d*')
+        target = join(root, "dataset_description.json")
+        assert target in bids_layout.files
+        assert target in layout.files
+        sub_file = join(root, "sub-01", "sub-01_sessions.tsv")
+        assert sub_file in bids_layout.files
+        assert sub_file not in layout.files
+
     def test_absolute_paths(self, bids_layout):
         result = bids_layout.get(subject=1, run=1, session=1)
         assert result  # that we got some entries
         assert all([os.path.isabs(f.filename) for f in result])
 
         if not hasattr(bids_layout, '_hdfs_client'):
-            root = os.path.join(DIRNAME, 'data', '7t_trt')
+            root = join(DIRNAME, 'data', '7t_trt')
             root = os.path.relpath(root)
-            config = os.path.join(DIRNAME, 'specs', 'test.json')
+            config = join(DIRNAME, 'specs', 'test.json')
 
             layout = Layout(root, config, absolute_paths=False)
 
@@ -174,8 +197,8 @@ class TestLayout:
             assert all([os.path.isabs(f.filename) for f in result])
 
     @pytest.mark.parametrize('data_dir, config',
-                             [(os.path.join(DIRNAME, 'data', '7t_trt'),
-                               os.path.join(DIRNAME, 'specs', 'test.json')),
+                             [(join(DIRNAME, 'data', '7t_trt'),
+                               join(DIRNAME, 'specs', 'test.json')),
                               (psp.join('hdfs://localhost:9000/grabbit/test/',
                                'data', '7t_trt'),
                                psp.join('hdfs://localhost:9000/grabbit/test/',
@@ -244,7 +267,7 @@ class TestLayout:
         nearest = bids_layout.get_nearest(
             result, type='sessions', extensions='tsv',
             ignore_strict_entities=['type'])
-        target = os.path.join('7t_trt', 'sub-01', 'sub-01_sessions.tsv')
+        target = join('7t_trt', 'sub-01', 'sub-01_sessions.tsv')
         assert target in nearest
         nearest = bids_layout.get_nearest(
             result, extensions='tsv', all_=True,
@@ -257,9 +280,9 @@ class TestLayout:
         assert nearest[0].subject == '01'
 
     def test_index_regex(self, bids_layout, layout_include):
-        targ = os.path.join(bids_layout.root, 'derivatives', 'excluded.json')
+        targ = join(bids_layout.root, 'derivatives', 'excluded.json')
         assert targ not in bids_layout.files
-        targ = os.path.join(layout_include.root, 'models',
+        targ = join(layout_include.root, 'models',
                             'excluded_model.json')
         assert targ not in layout_include.files
 
@@ -284,13 +307,13 @@ class TestLayout:
         os.unlink(tmp)
 
     def test_load_index(self, bids_layout):
-        f = os.path.join(DIRNAME, 'misc', 'index.json')
+        f = join(DIRNAME, 'misc', 'index.json')
         bids_layout.load_index(f)
         assert bids_layout.unique('subject') == ['01']
         assert len(bids_layout.files) == 24
 
         # Test with reindexing
-        f = os.path.join(DIRNAME, 'misc', 'index.json')
+        f = join(DIRNAME, 'misc', 'index.json')
         bids_layout.load_index(f, reindex=True)
         assert bids_layout.unique('subject') == ['01']
         assert len(bids_layout.files) == 24
@@ -305,8 +328,8 @@ class TestLayout:
             def hash_file(self, file):
                 return str(hash(file.path)) + '.hsh'
 
-        root = os.path.join(DIRNAME, 'data', '7t_trt')
-        config = os.path.join(DIRNAME, 'specs',
+        root = join(DIRNAME, 'data', '7t_trt')
+        config = join(DIRNAME, 'specs',
                               'test_with_mapper.json')
 
         # Test with external mapper
@@ -337,10 +360,11 @@ class TestLayout:
 
     def test_excludes(self, tmpdir):
         root = tmpdir.mkdir("ohmyderivatives").mkdir("ds")
-        config = os.path.join(DIRNAME, 'specs', 'test.json')
+        config = join(DIRNAME, 'specs', 'test.json')
         layout = Layout(str(root), config, regex_search=True)
         assert layout._check_inclusions(str(root.join("ohmyimportantfile")))
-        assert not layout._check_inclusions(str(root.join("badbadderivatives")))
+        assert not layout._check_inclusions(
+            str(root.join("badbadderivatives")))
 
     def test_multiple_domains(self, stamp_layout):
         layout = stamp_layout.clone()
