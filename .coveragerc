@@ -1,3 +1,5 @@
 [run]
 include = grabbit/
-omit = */tests/*
+omit =
+	*/tests/*
+	grabbit/external/
