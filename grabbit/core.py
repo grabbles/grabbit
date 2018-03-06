@@ -141,8 +141,8 @@ class Domain(object):
         self.files = []
         self.path_patterns = []
 
-        self.include = self.config.get('include', [])
-        self.exclude = self.config.get('exclude', [])
+        self.include = listify(self.config.get('include', []))
+        self.exclude = listify(self.config.get('exclude', []))
 
         if self.include and self.exclude:
             raise ValueError("The 'include' and 'exclude' arguments cannot "
@@ -302,7 +302,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def __init__(self, path, config=None, index=None, dynamic_getters=False,
                  absolute_paths=True, regex_search=False, entity_mapper=None,
-                 path_patterns=None, config_filename='layout.json'):
+                 path_patterns=None, config_filename='layout.json',
+                 include=None, exclude=None):
         """
         A container for all the files and metadata found at the specified path.
 
@@ -351,7 +352,19 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 Every directory will be scanned for this file, and if found,
                 the config file will be read in and added to the list of
                 configs.
+            include (str, list): A string or list specifying regexes used to
+                globally filter files when indexing. A file or directory
+                *must* match at least of the passed values in order to be
+                retained in the index. Cannot be used together with 'exclude'.
+            exclude (str, list): A string or list specifying regexes used to
+                globally filter files when indexing. If a file or directory
+                *must* matches any of the passed values, it will be dropped
+                from indexing. Cannot be used together with 'include'.
         """
+
+        if include is not None and exclude is not None:
+            raise ValueError("You cannot specify both the include and exclude"
+                             " arguments. Please pass at most one of these.")
 
         self.root = abspath(path) if absolute_paths else path
         self.entities = OrderedDict()
@@ -363,6 +376,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         self.path_patterns = path_patterns if path_patterns else []
         self.config_filename = config_filename
         self.domains = OrderedDict()
+        self.include = listify(include or [])
+        self.exclude = listify(exclude or [])
 
         if config is not None:
             for c in listify(config):
@@ -447,18 +462,19 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         if domains is None:
             domains = list(self.domains.keys())
 
+        domains = [self.domains[dom] for dom in domains]
+
+        # Inject the Layout at the first position for global include/exclude
+        domains.insert(0, self)
         for dom in domains:
-            dom = self.domains[dom]
             # If file matches any include regex, then True
-            include_regex = dom.include
-            if include_regex:
-                for regex in include_regex:
+            if dom.include:
+                for regex in dom.include:
                     if re.match(regex, filename):
-                        break
-                else:
-                    return False
+                        return True
+                return False
             else:
-                # If file matches any excldue regex, then false
+                # If file matches any exclude regex, then False
                 for regex in dom.exclude:
                     if re.match(regex, filename, flags=re.UNICODE):
                         return False
