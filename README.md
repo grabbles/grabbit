@@ -5,6 +5,10 @@ Get grabby with file trees
 
 Grabbit is a lightweight Python 3 package for simple queries over filenames within a project. It's geared towards projects or applications with highly structured filenames that allow useful queries to be performed without having to inspect the file metadata or contents.
 
+## Status
+* [![Build Status](https://travis-ci.org/grabbles/grabbit.svg?branch=master)](https://travis-ci.org/grabbles/grabbit)
+* [![Coverage Status](https://coveralls.io/repos/github/grabbles/grabbit/badge.svg?branch=master)](https://coveralls.io/github/grabbles/grabbit?branch=master)
+
 ## Installation
 
 ```
