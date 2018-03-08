@@ -223,8 +223,8 @@ class Entity(object):
         self.regex = re.compile(pattern) if pattern is not None else None
         domain_name = getattr(domain, 'name', '')
         self.id = '.'.join([domain_name, name])
-        self.aliases = ['.'.join([domain_name, alias])
-                        for alias in listify(aliases)]
+        aliases = [] if aliases is None else listify(aliases)
+        self.aliases = ['.'.join([domain_name, alias]) for alias in aliases]
 
     def __iter__(self):
         for i in self.unique():
