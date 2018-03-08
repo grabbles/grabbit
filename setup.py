@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 if len(set(('test', 'easy_install')).intersection(sys.argv)) > 0:
     import setuptools
 
-tests_require = []
+tests_require = ["pytest>=3.3.0"]
 
 VERSION = "0.1.1"
 
