@@ -1,6 +1,7 @@
 {
   "name": "usa_stamps",
   "root": ".",
+  "exclude": ".*Mercury",
   "entities": [
     {
       "name": "name",

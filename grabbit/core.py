@@ -531,7 +531,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         # Create the file object--allows for subclassing
         f = self._make_file_object(root, f)
 
-        if not (self._check_inclusions(f) and self._validate_file(f)):
+        if not (self._check_inclusions(f, domains) and self._validate_file(f)):
             return
 
         for d in domains:
