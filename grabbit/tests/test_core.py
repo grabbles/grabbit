@@ -5,6 +5,7 @@ from os.path import join
 import posixpath as psp
 import tempfile
 import json
+from copy import copy
 
 
 DIRNAME = os.path.dirname(__file__)
@@ -64,6 +65,7 @@ class TestFile:
         assert f.entities == {}
 
     def test_matches(self, file):
+        file = copy(file)
         assert file._matches()
         assert file._matches(extensions='nii.gz')
         assert not file._matches(extensions=['.txt', '.rtf'])
@@ -79,12 +81,22 @@ class TestFile:
                              regex_search=True)
 
     def test_named_tuple(self, file):
+        file = copy(file)
         file.tags = {'attrA': Tag(None, 'apple'), 'attrB': Tag(None, 'banana')}
         tup = file.as_named_tuple()
         assert(tup.filename == file.path)
         assert isinstance(tup, tuple)
         assert not hasattr(tup, 'task')
         assert tup.attrA == 'apple'
+
+    def test_named_tuple_with_reserved_name(self, file):
+        file = copy(file)
+        file.tags['class'] = Tag(None, 'invalid')
+        with pytest.warns(UserWarning) as w:
+            res = file.as_named_tuple()
+            assert w[0].message.args[0].startswith('Entity names cannot')
+            assert hasattr(res, 'class_')
+            assert not hasattr(res, 'class')
 
 
 class TestEntity:
