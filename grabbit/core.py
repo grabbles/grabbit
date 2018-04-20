@@ -66,8 +66,11 @@ class File(object):
 
             for name, val in entities.items():
 
-                if name not in self.tags:
+                if (name not in self.tags) ^ (val is None):
                     return False
+
+                if val is None:
+                    continue
 
                 def make_patt(x):
                     patt = '%s' % x
