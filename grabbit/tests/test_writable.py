@@ -18,7 +18,7 @@ def writable_file(tmpdir):
 def layout():
     data_dir = join(dirname(__file__), 'data', '7t_trt')
     config = join(dirname(__file__), 'specs', 'test.json')
-    layout = Layout(data_dir, config=config)
+    layout = Layout(data_dir, config)
     return layout
 
 
@@ -190,7 +190,7 @@ class TestWritableLayout:
         contents = 'test'
         data_dir = join(dirname(__file__), 'data', '7t_trt')
         config = join(dirname(__file__), 'specs', 'test.json')
-        layout = Layout(data_dir, config=[config, {
+        layout = Layout(data_dir, [config, {
             'name': "test_writable",
             'default_path_patterns': ['sub-{subject}/ses-{session}/{subject}'
                                       '{session}{run}{type}{task}{acquisition}'
