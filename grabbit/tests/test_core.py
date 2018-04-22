@@ -146,10 +146,10 @@ class TestLayout:
         root = join(DIRNAME, 'data', '7t_trt')
         config = join(DIRNAME, 'specs', 'test.json')
         layout = Layout(root, config, regex_search=True, include='sub-\d*')
-        target = join("dataset_description.json")
+        target = join(root, "dataset_description.json")
         assert target in bids_layout.files
         assert target not in layout.files
-        assert join("sub-01", "sub-01_sessions.tsv") in layout.files
+        assert join(root, "sub-01", "sub-01_sessions.tsv") in layout.files
         with pytest.raises(ValueError):
             layout = Layout(root, config, include='sub-\d*', exclude="meh")
 
@@ -157,10 +157,10 @@ class TestLayout:
         root = join(DIRNAME, 'data', '7t_trt')
         config = join(DIRNAME, 'specs', 'test.json')
         layout = Layout(root, config, regex_search=True, exclude='sub-\d*')
-        target = join("dataset_description.json")
+        target = join(root, "dataset_description.json")
         assert target in bids_layout.files
         assert target in layout.files
-        sub_file = join("sub-01", "sub-01_sessions.tsv")
+        sub_file = join(root, "sub-01", "sub-01_sessions.tsv")
         assert sub_file in bids_layout.files
         assert sub_file not in layout.files
 

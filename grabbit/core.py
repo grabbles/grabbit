@@ -320,7 +320,7 @@ class LayoutMetaclass(type):
 class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def __init__(self, root=None, config=None, index=None,
-                 dynamic_getters=False, absolute_paths=False,
+                 dynamic_getters=False, absolute_paths=True,
                  regex_search=False, entity_mapper=None, path_patterns=None,
                  config_filename='layout.json', include=None, exclude=None):
         """
