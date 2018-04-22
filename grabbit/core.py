@@ -1010,7 +1010,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
     def write_contents_to_file(self, entities, path_patterns=None,
                                contents=None, link_to=None,
                                content_mode='text', conflicts='fail',
-                               strict=False, domains=None):
+                               strict=False, domains=None, index=False,
+                               index_domains=None):
         """
         Write arbitrary data to a file defined by the passed entities and
         path patterns.
@@ -1035,19 +1036,39 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             domains (list): List of Domains to scan for path_patterns. Order
                 determines precedence (i.e., earlier Domains will be scanned
                 first). If None, all available domains are included.
+            index (bool): If True, adds the generated file to the current
+                index using the domains specified in index_domains.
+            index_domains (list): List of domain names to attach the generated
+                file to when indexing. Ignored if index == False.  If None,
+                All available domains are used.
 
         """
-        if not path_patterns:
-            path_patterns = self.path_patterns
+        if path_patterns:
+            path = build_path(entities, path_patterns, strict)
+        else:
+            path_patterns = [self.path_patterns]
             if domains is None:
                 domains = list(self.domains.keys())
             for dom in domains:
-                path_patterns.extend(self.domains[dom].path_patterns)
-        path = build_path(entities, path_patterns, strict)
+                path_patterns.append(self.domains[dom].path_patterns)
+            for pp in path_patterns:
+                path = build_path(entities, pp, strict)
+                if path is not None:
+                    break
+
+        if path is None:
+            raise ValueError("Cannot construct any valid filename for "
+                             "the passed entities given available path "
+                             "patterns.")
+
         write_contents_to_file(path, contents=contents, link_to=link_to,
                                content_mode=content_mode, conflicts=conflicts,
                                root=self.root)
-        self._index_file(self.root, path)
+
+        if index:
+            if index_domains is None:
+                index_domains = list(self.domains.keys())
+            self._index_file(self.root, path, index_domains)
 
 
 def merge_layouts(layouts):
