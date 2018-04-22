@@ -5,7 +5,8 @@ from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, listify
 from grabbit.extensions.writable import build_path, write_contents_to_file
-from os.path import (join, basename, dirname, abspath, split, exists, isdir)
+from os.path import (join, basename, dirname, abspath, split, exists, isdir,
+                     relpath, isabs)
 from functools import partial
 from copy import deepcopy
 import warnings
@@ -119,11 +120,20 @@ class File(object):
         if new_filename[-1] == os.sep:
             new_filename += self.filename
 
+        if isabs(self.path) or root is None:
+            path = self.path
+        else:
+            path = join(root, self.path)
+
+        if not exists(path):
+            raise ValueError("Target filename to copy/symlink (%s) doesn't "
+                             "exist." % path)
+
         if symbolic_link:
             contents = None
-            link_to = self.path
+            link_to = path
         else:
-            with open(self.path, 'r') as f:
+            with open(path, 'r') as f:
                 contents = f.read()
             link_to = None
 
@@ -614,7 +624,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                         # path. Otherwise, use absolute path.
                         if full_path.startswith(self.root) and not \
                                 self.absolute_paths:
-                            full_path = os.path.relpath(full_path, self.root)
+                            full_path = relpath(full_path, self.root)
                         files_to_index[full_path] |= doms_to_add
 
         for dom in self.domains.values():
@@ -1005,7 +1015,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         for f in _files:
             f.copy(path_patterns, symbolic_link=symbolic_links,
-                   root=root, conflicts=conflicts)
+                   root=self.root, conflicts=conflicts)
 
     def write_contents_to_file(self, entities, path_patterns=None,
                                contents=None, link_to=None,
