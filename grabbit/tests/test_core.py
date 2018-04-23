@@ -185,8 +185,8 @@ class TestLayout:
         assert 'name=1_Lotus#value=1#country=Canada.txt' in files
 
         # Test with two configs and on-the-fly directory remapping
-        layout = Layout(root, [(config1, [dir1, dir2])],
-                        exclude=['7t_trt', 'USA/'])
+        layout = Layout(dir1, [(config1, [dir1, dir2])],
+                        exclude=['USA/'])
         files = [f.filename for f in layout.files.values()]
         assert 'name=Inverted_Jenny#value=75000#country=USA.txt' in files
         assert 'name=5c_Francis_E_Willard#value=1dollar.txt' not in files
