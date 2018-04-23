@@ -452,9 +452,10 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         if config.get('root') in [None, '.']:
             config['root'] = root
 
-        if not exists(config['root']):
-            raise ValueError("Root directory %s for domain %s does not exist!"
-                             % (config['root'], config['name']))
+        for root in listify(config['root']):
+            if not exists(root):
+                raise ValueError("Root directory %s for domain %s does not "
+                                 "exist!" % (config['root'], config['name']))
 
         # Load entities
         domain = Domain(config['name'], config)

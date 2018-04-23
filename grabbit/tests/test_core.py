@@ -164,6 +164,28 @@ class TestLayout:
         assert sub_file in bids_layout.files
         assert sub_file not in layout.files
 
+    def test_init_with_config_options(self):
+        root = join(DIRNAME, 'data')
+        dir1 = join(root, 'valuable_stamps')
+        dir2 = join(root, 'ordinary_stamps')
+        config1 = join(DIRNAME, 'specs', 'stamps.json')
+        config2 = join(dir1, 'USA', 'dir_config.json')
+
+        # Fails because Domain usa_stamps is included twice
+        with pytest.raises(ValueError) as e:
+            layout = Layout(root, [config1, config2], exclude=['7t_trt'],
+                            config_filename='dir_config.json')
+            assert e.value.message.startswith('Config with name')
+
+        # Test with two configs
+        layout = Layout(root, [config1, config2], exclude=['7t_trt'])
+        assert len(layout.files) == 17
+
+        # Test with two configs and on-the-fly directory remapping
+        layout = Layout(root, [(config1, [dir1, dir2])],
+                        exclude=['7t_trt', 'USA/'])
+        assert len(layout.files) == 12
+
     def test_absolute_paths(self, bids_layout):
 
         if not hasattr(bids_layout, '_hdfs_client'):
