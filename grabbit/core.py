@@ -455,7 +455,7 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         for root in listify(config['root']):
             if not exists(root):
                 raise ValueError("Root directory %s for domain %s does not "
-                                 "exist!" % (config['root'], config['name']))
+                                 "exist!" % (root, config['name']))
 
         # Load entities
         domain = Domain(config['name'], config)
