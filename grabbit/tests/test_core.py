@@ -179,12 +179,18 @@ class TestLayout:
 
         # Test with two configs
         layout = Layout(root, [config1, config2], exclude=['7t_trt'])
-        assert len(layout.files) == 17
+        files = [f.filename for f in layout.files.values()]
+        assert 'name=Inverted_Jenny#value=75000#country=USA.txt' in files
+        assert 'name=5c_Francis_E_Willard#value=1dollar.txt' in files
+        assert 'name=1_Lotus#value=1#country=Canada.txt' in files
 
         # Test with two configs and on-the-fly directory remapping
         layout = Layout(root, [(config1, [dir1, dir2])],
                         exclude=['7t_trt', 'USA/'])
-        assert len(layout.files) == 12
+        files = [f.filename for f in layout.files.values()]
+        assert 'name=Inverted_Jenny#value=75000#country=USA.txt' in files
+        assert 'name=5c_Francis_E_Willard#value=1dollar.txt' not in files
+        assert 'name=1_Lotus#value=1#country=Canada.txt' in files
 
     def test_absolute_paths(self, bids_layout):
 
