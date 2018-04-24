@@ -1,130 +1,250 @@
 {
   "dataset_description.json": {
-    "test.type": "description"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.type": "description"
+    }
   },
   "participants.tsv": {
-    "test.type": "trt/participants"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.type": "trt/participants"
+    }
   },
   "task-rest_acq-fullbrain_bold.json": {
-    "test.type": "bold",
-    "test.task": "rest_acq"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.type": "bold",
+      "test.task": "rest_acq"
+    }
   },
   "task-rest_acq-fullbrain_run-1_physio.json": {
-    "test.run": "1",
-    "test.type": "physio",
-    "test.task": "rest_acq",
-    "test.acquisition": "fullbrain_run"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.run": "1",
+      "test.type": "physio",
+      "test.task": "rest_acq",
+      "test.acquisition": "fullbrain_run"
+    }
   },
   "task-rest_acq-fullbrain_run-2_physio.json": {
-    "test.run": "2",
-    "test.type": "physio",
-    "test.task": "rest_acq",
-    "test.acquisition": "fullbrain_run"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.run": "2",
+      "test.type": "physio",
+      "test.task": "rest_acq",
+      "test.acquisition": "fullbrain_run"
+    }
   },
   "task-rest_acq-prefrontal_bold.json": {
-    "test.type": "bold",
-    "test.task": "rest_acq"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.type": "bold",
+      "test.task": "rest_acq"
+    }
   },
   "task-rest_acq-prefrontal_physio.json": {
-    "test.type": "physio",
-    "test.task": "rest_acq"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.type": "physio",
+      "test.task": "rest_acq"
+    }
   },
   "test.bval": {
-    "test.type": "trt/test",
-    "test.bval": "test.bval"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.type": "trt/test",
+      "test.bval": "test.bval"
+    }
   },
   "models/excluded_model.json": {
-    "test.type": "model"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.type": "model"
+    }
   },
   "sub-01/sub-01_sessions.tsv": {
-    "test.subject": "01",
-    "test.type": "sessions"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.type": "sessions"
+    }
   },
   "sub-01/ses-1/sub-01_ses-1_scans.tsv": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.type": "scans"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.type": "scans"
+    }
   },
   "sub-01/ses-1/anat/sub-01_ses-1_T1map.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.type": "T1map"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.type": "T1map"
+    }
   },
   "sub-01/ses-1/anat/sub-01_ses-1_T1w.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.type": "T1w"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.type": "T1w"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-1_magnitude1.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "1",
-    "test.type": "magnitude1"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "1",
+      "test.type": "magnitude1"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-1_magnitude2.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "1",
-    "test.type": "magnitude2"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "1",
+      "test.type": "magnitude2"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-1_phasediff.json": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "1",
-    "test.type": "phasediff"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "1",
+      "test.type": "phasediff"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-1_phasediff.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "1",
-    "test.type": "phasediff"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "1",
+      "test.type": "phasediff"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-2_magnitude1.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "2",
-    "test.type": "magnitude1"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "2",
+      "test.type": "magnitude1"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-2_magnitude2.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "2",
-    "test.type": "magnitude2"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "2",
+      "test.type": "magnitude2"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-2_phasediff.json": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "2",
-    "test.type": "phasediff"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "2",
+      "test.type": "phasediff"
+    }
   },
   "sub-01/ses-1/fmap/sub-01_ses-1_run-2_phasediff.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "2",
-    "test.type": "phasediff"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "2",
+      "test.type": "phasediff"
+    }
   },
   "sub-01/ses-1/func/sub-01_ses-1_task-rest_acq-fullbrain_run-1_bold.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "1",
-    "test.type": "bold",
-    "test.task": "rest_acq",
-    "test.acquisition": "fullbrain_run"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "1",
+      "test.type": "bold",
+      "test.task": "rest_acq",
+      "test.acquisition": "fullbrain_run"
+    }
   },
   "sub-01/ses-1/func/sub-01_ses-1_task-rest_acq-fullbrain_run-1_physio.tsv.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "1",
-    "test.type": "physio",
-    "test.task": "rest_acq",
-    "test.acquisition": "fullbrain_run"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "1",
+      "test.type": "physio",
+      "test.task": "rest_acq",
+      "test.acquisition": "fullbrain_run"
+    }
   },
   "sub-01/ses-1/func/sub-01_ses-1_task-rest_acq-fullbrain_run-2_bold.nii.gz": {
-    "test.subject": "01",
-    "test.session": "1",
-    "test.run": "2",
-    "test.type": "bold",
-    "test.task": "rest_acq",
-    "test.acquisition": "fullbrain_run"
+    "domains": [
+      "test"
+    ],
+    "entities": {
+      "test.subject": "01",
+      "test.session": "1",
+      "test.run": "2",
+      "test.type": "bold",
+      "test.task": "rest_acq",
+      "test.acquisition": "fullbrain_run"
+    }
   }
 }

@@ -5,14 +5,14 @@
     {
       "name": "subject",
       "pattern": "sub-(\\d+)",
-      "directory": "{{root}}/{subject}",
+      "directory": "{subject}",
       "dtype": "str"
     },
     {
       "name": "session",
       "pattern": "ses-0*(\\d+)",
       "mandatory": false,
-      "directory": "{{root}}/{subject}/{session}",
+      "directory": "{subject}/{session}",
       "missing_value": "ses-1"
     },
     {

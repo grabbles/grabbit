@@ -18,7 +18,7 @@ def writable_file(tmpdir):
 def layout():
     data_dir = join(dirname(__file__), 'data', '7t_trt')
     config = join(dirname(__file__), 'specs', 'test.json')
-    layout = Layout(data_dir, config=config)
+    layout = Layout(data_dir, config, absolute_paths=False)
     return layout
 
 
@@ -176,8 +176,10 @@ class TestWritableLayout:
         data_dir = join(dirname(__file__), 'data', '7t_trt')
         entities = {'subject': 'Bob', 'session': '01'}
         pat = join('sub-{subject}/sess-{session}/desc.txt')
+
+        # With indexing
         layout.write_contents_to_file(entities, path_patterns=pat,
-                                      contents=contents)
+                                      contents=contents, index=True)
         target = join(data_dir, 'sub-Bob/sess-01/desc.txt')
         assert exists(target)
         with open(target) as f:
@@ -186,11 +188,23 @@ class TestWritableLayout:
         assert target in layout.files
         shutil.rmtree(join(data_dir, 'sub-Bob'))
 
+        # Without indexing
+        pat = join('sub-{subject}/sess-{session}/desc_no_index.txt')
+        layout.write_contents_to_file(entities, path_patterns=pat,
+                                      contents=contents, index=False)
+        target = join(data_dir, 'sub-Bob/sess-01/desc_no_index.txt')
+        assert exists(target)
+        with open(target) as f:
+            written = f.read()
+        assert written == contents
+        assert target not in layout.files
+        shutil.rmtree(join(data_dir, 'sub-Bob'))
+
     def test_write_contents_to_file_defaults(self, layout):
         contents = 'test'
         data_dir = join(dirname(__file__), 'data', '7t_trt')
         config = join(dirname(__file__), 'specs', 'test.json')
-        layout = Layout(data_dir, config=[config, {
+        layout = Layout(data_dir, [config, {
             'name': "test_writable",
             'default_path_patterns': ['sub-{subject}/ses-{session}/{subject}'
                                       '{session}{run}{type}{task}{acquisition}'
@@ -199,7 +213,7 @@ class TestWritableLayout:
         entities = {'subject': 'Bob', 'session': '01', 'run': '1',
                     'type': 'test', 'task': 'test', 'acquisition': 'test',
                     'bval': 0}
-        layout.write_contents_to_file(entities, contents=contents)
+        layout.write_contents_to_file(entities, contents=contents, index=True)
         target = join(data_dir, 'sub-Bob/ses-01/Bob011testtesttest0')
         assert exists(target)
         with open(target) as f:
@@ -218,6 +232,6 @@ class TestWritableLayout:
 
         data_dir = join(dirname(__file__), 'data', '7t_trt')
         filename = 'sub-04_ses-1_task-rest_acq-fullbrain_run-1_physio.tsv.gz'
-        file = join(data_dir, 'sub-04', 'ses-1', 'func', filename)
+        file = join('sub-04', 'ses-1', 'func', filename)
         path = layout.build_path(file, path_patterns=pat)
         assert path.endswith('sub-04/sess-1/r-1.nii.gz')

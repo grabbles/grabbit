@@ -114,9 +114,8 @@ class TestEntity:
         tmpdir.mkdir("tmp").join(filename).write("###")
         f = File(join(str(tmpdir), filename))
         e = Entity('avaricious', 'aardvark-(\d+)')
-        e.matches(f, update_file=True)
-        assert 'avaricious' in f.entities
-        assert f.entities['avaricious'] == '4'
+        result = e.match_file(f)
+        assert result == '4'
 
     def test_unique_and_count(self):
         e = Entity('prop', '-(\d+)')
@@ -138,10 +137,6 @@ class TestEntity:
 class TestLayout:
 
     def test_init(self, bids_layout):
-        if hasattr(bids_layout, '_hdfs_client'):
-            assert bids_layout._hdfs_client.list(bids_layout.root)
-        else:
-            assert os.path.exists(bids_layout.root)
         assert isinstance(bids_layout.files, dict)
         assert isinstance(bids_layout.entities, dict)
         assert isinstance(bids_layout.mandatory, set)
@@ -169,26 +164,51 @@ class TestLayout:
         assert sub_file in bids_layout.files
         assert sub_file not in layout.files
 
+    def test_init_with_config_options(self):
+        root = join(DIRNAME, 'data')
+        dir1 = join(root, 'valuable_stamps')
+        dir2 = join(root, 'ordinary_stamps')
+        config1 = join(DIRNAME, 'specs', 'stamps.json')
+        config2 = join(dir1, 'USA', 'dir_config.json')
+
+        # Fails because Domain usa_stamps is included twice
+        with pytest.raises(ValueError) as e:
+            layout = Layout(root, [config1, config2], exclude=['7t_trt'],
+                            config_filename='dir_config.json')
+            assert e.value.message.startswith('Config with name')
+
+        # Test with two configs
+        layout = Layout(root, [config1, config2], exclude=['7t_trt'])
+        files = [f.filename for f in layout.files.values()]
+        assert 'name=Inverted_Jenny#value=75000#country=USA.txt' in files
+        assert 'name=5c_Francis_E_Willard#value=1dollar.txt' in files
+        assert 'name=1_Lotus#value=1#country=Canada.txt' in files
+
+        # Test with two configs and on-the-fly directory remapping
+        layout = Layout(dir1, [(config1, [dir1, dir2])],
+                        exclude=['USA/'])
+        files = [f.filename for f in layout.files.values()]
+        assert 'name=Inverted_Jenny#value=75000#country=USA.txt' in files
+        assert 'name=5c_Francis_E_Willard#value=1dollar.txt' not in files
+        assert 'name=1_Lotus#value=1#country=Canada.txt' in files
+
     def test_absolute_paths(self, bids_layout):
-        result = bids_layout.get(subject=1, run=1, session=1)
-        assert result  # that we got some entries
-        assert all([os.path.isabs(f.filename) for f in result])
 
         if not hasattr(bids_layout, '_hdfs_client'):
             root = join(DIRNAME, 'data', '7t_trt')
             root = os.path.relpath(root)
             config = join(DIRNAME, 'specs', 'test.json')
 
-            layout = Layout(root, config, absolute_paths=False)
-
-            result = layout.get(subject=1, run=1, session=1)
-            assert result
-            assert not any([os.path.isabs(f.filename) for f in result])
-
             layout = Layout(root, config, absolute_paths=True)
+
             result = layout.get(subject=1, run=1, session=1)
             assert result
             assert all([os.path.isabs(f.filename) for f in result])
+
+            layout = Layout(root, config, absolute_paths=False)
+            result = layout.get(subject=1, run=1, session=1)
+            assert result
+            assert not any([os.path.isabs(f.filename) for f in result])
 
         # Should always be absolute paths on HDFS
         else:
@@ -250,8 +270,8 @@ class TestLayout:
         if hasattr(bids_layout, '_hdfs_client'):
             assert bids_layout._hdfs_client.list(bids_layout.root)
         else:
-            assert os.path.exists(result[0])
-            assert os.path.isdir(result[0])
+            assert os.path.exists(join(bids_layout.root, result[0]))
+            assert os.path.isdir(join(bids_layout.root, result[0]))
 
         result = bids_layout.get(target='subject', type='phasediff',
                                  return_type='file')
@@ -259,7 +279,8 @@ class TestLayout:
         if hasattr(bids_layout, '_hdfs_client'):
             assert all([bids_layout._hdfs_client.content(f) for f in result])
         else:
-            assert all([os.path.exists(f) for f in result])
+            assert all([os.path.exists(join(bids_layout.root, f))
+                        for f in result])
 
     def test_natsort(self, bids_layout):
         result = bids_layout.get(target='subject', return_type='id')
@@ -279,7 +300,7 @@ class TestLayout:
         nearest = bids_layout.get_nearest(
             result, type='sessions', extensions='tsv',
             ignore_strict_entities=['type'])
-        target = join('7t_trt', 'sub-01', 'sub-01_sessions.tsv')
+        target = join('sub-01', 'sub-01_sessions.tsv')
         assert target in nearest
         nearest = bids_layout.get_nearest(
             result, extensions='tsv', all_=True,
@@ -292,11 +313,11 @@ class TestLayout:
         assert nearest[0].subject == '01'
 
     def test_index_regex(self, bids_layout, layout_include):
-        targ = join(bids_layout.root, 'derivatives', 'excluded.json')
+        targ = join('derivatives', 'excluded.json')
         assert targ not in bids_layout.files
-        targ = join(layout_include.root, 'models',
-                            'excluded_model.json')
-        assert targ not in layout_include.files
+        domain = layout_include.domains['test_with_includes']
+        targ = join('models', 'excluded_model.json')
+        assert targ not in domain.files
 
         with pytest.raises(ValueError):
             layout_include._load_domain({'entities': [],
@@ -315,7 +336,8 @@ class TestLayout:
         for i in range(10):
             f = files[i]
             entities = {v.entity.id: v.value for v in f.tags.values()}
-            assert entities == index[f.path]
+            assert entities == index[f.path]['entities']
+            assert list(f.domains) == index[f.path]['domains']
         os.unlink(tmp)
 
     def test_load_index(self, bids_layout):
@@ -341,8 +363,7 @@ class TestLayout:
                 return str(hash(file.path)) + '.hsh'
 
         root = join(DIRNAME, 'data', '7t_trt')
-        config = join(DIRNAME, 'specs',
-                              'test_with_mapper.json')
+        config = join(DIRNAME, 'specs', 'test_with_mapper.json')
 
         # Test with external mapper
         em = EntityMapper()
@@ -363,7 +384,7 @@ class TestLayout:
 
     def test_clone(self, bids_layout):
         lc = bids_layout.clone()
-        attrs = ['root', 'mandatory', 'dynamic_getters', 'regex_search',
+        attrs = ['mandatory', 'dynamic_getters', 'regex_search',
                  'entity_mapper']
         for a in attrs:
             assert getattr(bids_layout, a) == getattr(lc, a)
@@ -374,7 +395,8 @@ class TestLayout:
         root = tmpdir.mkdir("ohmyderivatives").mkdir("ds")
         config = join(DIRNAME, 'specs', 'test.json')
         layout = Layout(str(root), config, regex_search=True)
-        assert layout._check_inclusions(str(root.join("ohmyimportantfile")))
+        assert layout._check_inclusions(str(root.join("ohmyimportantfile")),
+                                        fullpath=False)
         assert not layout._check_inclusions(
             str(root.join("badbadderivatives")))
 
@@ -383,6 +405,7 @@ class TestLayout:
         assert {'stamps', 'usa_stamps'} == set(layout.domains.keys())
         usa = layout.domains['usa_stamps']
         general = layout.domains['stamps']
+        print([f.filename for f in usa.files])
         assert len(usa.files) == 3
         assert len(layout.files) == len(general.files)
         assert not set(usa.files) - set(general.files)
