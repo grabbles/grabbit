@@ -1,16 +1,18 @@
 import sys
 from setuptools import setup, find_packages
+import versioneer
 
 if len(set(('test', 'easy_install')).intersection(sys.argv)) > 0:
     import setuptools
 
 tests_require = ["pytest>=3.3.0"]
 
-VERSION = "0.1.2"
+VERSION=versioneer.get_version()
 
 setup(
     name="grabbit",
     version=VERSION,
+    cmdclass=versioneer.get_cmdclass(),
     description="get grabby with file trees",
     maintainer='Tal Yarkoni',
     maintainer_email='tyarkoni@gmail.com',
