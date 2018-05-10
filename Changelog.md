@@ -1,3 +1,10 @@
+0.1.23 (May 10, 2018)
+This release includes a major refactoring of the internal code, but maintains backward compatibility in the user-facing API. Changes include:
+* Elimination of the concept of a static root folder for each Domain in favor of a scan-time search path (#63)
+* Allow querying with `None` values for to-be-ignored keys (thanks to @effigies; #62)
+* Fix filtering bug (#59)
+* Prevent keyword names that conflict with reserved keywords from breaking queries (#60)
+
 0.1.1 (March 5, 2018)
 This release adds several improvements and fixes:
 * Introduces "Domains", which allow mapping multiple configs to multiple directories (#49)
