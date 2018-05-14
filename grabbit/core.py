@@ -545,6 +545,9 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         # Create the file object--allows for subclassing
         f = self._make_file_object(root, f)
 
+        if domains is None:
+          domains = []
+
         for d in listify(domains):
             if d not in self.domains:
                 raise ValueError("Cannot index file '%s' in domain '%s'; "
