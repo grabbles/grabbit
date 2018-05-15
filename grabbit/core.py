@@ -950,12 +950,15 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
     def parse_file_entities(self, filename, domains=None):
         root, f = dirname(filename), basename(filename)
-        if not root and domains is None:
-            raise ValueError("If a relative path is provided as the filename "
-                             "argument, you *must* specify the names of the "
-                             "domains whose entities are to be extracted. "
-                             "Available domains for the current layout are: %s"
-                             % list(self.domains.keys()))
+        if domains is None:
+            if not root:
+                msg = ("If a relative path is provided as the filename "
+                       "argument, you *must* specify the names of the "
+                       "domains whose entities are to be extracted. "
+                       "Available domains for the current layout are: %s"
+                       % list(self.domains.keys()))
+                raise ValueError(msg)
+            domains = list(self.domains.keys())
         result = self._index_file(root, f, domains, update_layout=False)
         return result.entities
 
