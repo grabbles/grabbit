@@ -322,7 +322,7 @@ class LayoutMetaclass(type):
 
 class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
-    def __init__(self, root=None, config=None, index=None,
+    def __init__(self, paths=None, root=None, index=None,
                  dynamic_getters=False, absolute_paths=True,
                  regex_search=False, entity_mapper=None, path_patterns=None,
                  config_filename='layout.json', include=None, exclude=None):
@@ -330,21 +330,23 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         A container for all the files and metadata found at the specified path.
 
         Args:
-            root (str): Directory that all other paths will be relative to.
-            Every other path the Layout sees must be at this level or below.
-            domains (str, list, dict): A specification of the configuration
-                object(s) defining domains to use in the Layout. Can be one of:
+            paths (str, list): The path(s) where project files are located.
+                Must be one of:
 
-                - A dictionary containing config information
-                - A string giving the path to a JSON file containing the config
-                - A string giving the path to a directory containing a
-                  configuration file with the name defined in config_filename
-                - A tuple with two elements, where the first element is one of
-                  the above (i.e., dict or string), and the second element is
-                  an iterable of directories to apply the config to.
-                - A list, where each element is any of the above (dict, string,
-                  or tuple).
+                - A path to a directory containing files to index
+                - A list of paths to directories to index
+                - A list of 2-tuples where each tuple encodes a mapping from
+                  directories to domains. The first element is a string or
+                  list giving the paths to one or more directories to index.
+                  The second element specifies which domains to apply to the
+                  specified files, and can be one of:
+                    * A string giving the path to a JSON config file
+                    * A dictionary containing config information
+                    * A list of any combination of strings or dicts
 
+            root (str): Optional directory that all other paths will be
+                relative to. If set, every other path the Layout sees must be
+                at this level or below. If None, filesystem root ('/') is used.
             index (str): Optional path to a saved index file. If a valid value
                 is passed, this index is used to populate Files and Entities,
                 and the normal indexing process (which requires scanning all
@@ -407,6 +409,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         self.include = listify(include or [])
         self.exclude = listify(exclude or [])
         self.absolute_paths = absolute_paths
+        if root is None:
+            root = '/'
         self.root = abspath(root) if absolute_paths else root
 
         if config is not None:
