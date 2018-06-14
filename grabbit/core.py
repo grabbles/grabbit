@@ -8,10 +8,9 @@ from grabbit.extensions.writable import build_path, write_contents_to_file
 from os.path import (join, basename, dirname, abspath, split, exists, isdir,
                      relpath, isabs)
 from functools import partial
-from copy import deepcopy
+from copy import copy, deepcopy
 import warnings
 from keyword import iskeyword
-from itertools import chain
 
 
 __all__ = ['File', 'Entity', 'Layout']
@@ -56,7 +55,7 @@ class File(object):
             if isinstance(extensions, six.string_types):
                 extensions = [extensions]
             extensions = '(' + '|'.join(extensions) + ')$'
-            if re.search(extensions, self.path) is None:
+            if re.search(extensions, self.filename) is None:
                 return False
 
         if domains is not None:
@@ -147,7 +146,7 @@ class File(object):
 
 class Domain(object):
 
-    def __init__(self, name, config):
+    def __init__(self, config):
         """
         A set of rules that applies to one or more directories
         within a Layout.
@@ -156,11 +155,9 @@ class Domain(object):
             name (str): The name of the Domain.
             config (dict): The configuration dictionary that defines the
                 entities and paths for the current domain.
-            root (str, list): The root directory or directories to which the
-                Domain's rules applies. Can be either a single path, or a list.
         """
 
-        self.name = name
+        self.name = config['name']
         self.config = config
         self.entities = {}
         self.files = []
@@ -303,26 +300,9 @@ class Entity(object):
         return len(self.files) if files else len(self.unique())
 
 
-class LayoutMetaclass(type):
-    ''' Metaclass for Layout; used to enable merging of multiple Layouts into
-    a single Layout when a list of paths is passed as input.
-    '''
-    def __call__(cls, path, *args, **kwargs):
+class Layout(object):
 
-        paths = listify(path)
-        if len(paths) == 1:
-            return super(LayoutMetaclass, cls).__call__(paths[0], *args,
-                                                        **kwargs)
-        layouts = []
-        for p in paths:
-            layout = super(LayoutMetaclass, cls).__call__(p, *args, **kwargs)
-            layouts.append(layout)
-        return merge_layouts(layouts)
-
-
-class Layout(six.with_metaclass(LayoutMetaclass, object)):
-
-    def __init__(self, paths=None, root=None, index=None,
+    def __init__(self, paths, root=None, index=None,
                  dynamic_getters=False, absolute_paths=True,
                  regex_search=False, entity_mapper=None, path_patterns=None,
                  config_filename='layout.json', include=None, exclude=None):
@@ -411,66 +391,70 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         self.absolute_paths = absolute_paths
         if root is None:
             root = '/'
-        self.root = abspath(root) if absolute_paths else root
+        self.root = abspath(root)
 
-        if config is not None:
-            for c in listify(config):
-                if isinstance(c, tuple):
-                    c, root = c
-                else:
-                    root = None
-                self._load_domain(c, root, True)
+        self._domain_map = {}
+
+        # Extract path --> domain mapping
+        self._paths_to_index = {}
+
+        def add_path(path, val):
+            path = abspath(path)
+            self._paths_to_index[path] = val
+
+        for p in listify(paths, ignore=list):
+            if isinstance(p, six.string_types):
+                add_path(p, [])
+            else:
+                doms = listify(p[1])
+                doms = [self._get_or_load_domain(d) for d in doms]
+                for elem in listify(p[0]):
+                    add_path(elem, doms)
+
+        # Verify existence of all paths
+        for p in self._paths_to_index:
+            if not exists(p):
+                raise ValueError("Search path {} doesn't exist.".format(p))
 
         if index is None:
             self.index()
         else:
             self.load_index(index)
 
-    def _load_domain(self, config, root=None, from_init=False):
+    def _get_or_load_domain(self, domain):
+        ''' Return a domain if one already exists, or create a new one if not.
 
-        if isinstance(config, six.string_types):
+        Args:
+            domain (str, dict): Can be one of:
+                - The name of the Domain to return (fails if none exists)
+                - A path to the Domain configuration file
+                - A dictionary containing configuration information
+        '''
+        if isinstance(domain, six.string_types):
+            if domain in self.domains:
+                return self.domains[domain]
+            elif exists(domain):
+                domain = json.load(open(domain, 'r'))
+            else:
+                raise ValueError("No domain could be found/loaded from input "
+                                 "'{}'; value must be either the name of an "
+                                 "existing Domain, or a valid path to a "
+                                 "configuration file.".format(domain))
 
-            if isdir(config):
-                config = join(config, self.config_filename)
+        # At this point, domain is a dict
+        name = domain['name']
+        if name in self.domains:
+            msg = ("Domain with name '{}' already exists; returning existing "
+                   "Domain configuration.".format(name))
+            warnings.warn(msg)
+            return self.domains[name]
 
-            if not exists(config):
-                raise ValueError("Config file '%s' cannot be found." % config)
-
-            config_filename = config
-            config = json.load(open(config, 'r'))
-
-            if root is None and not from_init:
-                root = dirname(abspath(config_filename))
-
-        if 'name' not in config:
-            raise ValueError("Config file missing 'name' attribute.")
-
-        if config['name'] in self.domains:
-            raise ValueError("Config with name '%s' already exists in "
-                             "Layout. Name of each config file must be "
-                             "unique across entire Layout." % config['name'])
-
-        if root is None and from_init:
-            # warnings.warn("No valid root directory found for domain '%s'. "
-            #               "Falling back on root directory for Layout (%s)."
-            #               % (config['name'], self.root))
-            root = self.root
-
-        if config.get('root') in [None, '.']:
-            config['root'] = root
-
-        for root in listify(config['root']):
-            if not exists(root):
-                raise ValueError("Root directory %s for domain %s does not "
-                                 "exist!" % (root, config['name']))
-
-        # Load entities
-        domain = Domain(config['name'], config)
-        for e in config.get('entities', []):
+        entities = domain.get('entities', [])
+        domain = Domain(domain)
+        for e in entities:
             self.add_entity(domain=domain, **e)
-
-        self.domains[domain.name] = domain
-        return domain
+        self.domains[name] = domain
+        return self.domains[name]
 
     def get_domain_entities(self, domains=None):
         # Get all Entities included in the specified Domains, in the same
@@ -483,22 +467,19 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
             ents.update(self.domains[d].entities)
         return ents
 
-    def _check_inclusions(self, f, domains=None, fullpath=True):
+    def _check_inclusions(self, f, domains=None):
         ''' Check file or directory against regexes in config to determine if
             it should be included in the index '''
 
         filename = f if isinstance(f, six.string_types) else f.path
 
-        if not fullpath:
-            filename = basename(filename)
-
         if domains is None:
-            domains = list(self.domains.keys())
-
-        domains = [self.domains[dom] for dom in listify(domains)]
+            domains = list(self.domains.values())
 
         # Inject the Layout at the first position for global include/exclude
+        domains = list(domains)
         domains.insert(0, self)
+
         for dom in domains:
             # If file matches any include regex, then True
             if dom.include:
@@ -528,10 +509,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         return True
 
     def _get_files(self, root):
-        ''' Returns all files in project (pre-filtering). Extend this in
-        subclasses as needed. '''
-        results = [os.walk(r, topdown=True) for r in listify(root)]
-        return list(chain(*results))
+        ''' Returns all files in directory (non-recursively). '''
+        return os.listdir(root)
 
     def _make_file_object(self, root, f):
         ''' Initialize a new File oject from a directory and filename. Extend
@@ -549,12 +528,8 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         # Create the file object--allows for subclassing
         f = self._make_file_object(root, f)
 
-        for d in listify(domains):
-            if d not in self.domains:
-                raise ValueError("Cannot index file '%s' in domain '%s'; "
-                                 "no domain with that name exists." %
-                                 (f.path, d))
-            domain = self.domains[d]
+        for domain in listify(domains):
+            domain = self.domains[domain]
             match_vals = {}
             for e in domain.entities.values():
                 m = e.match_file(f)
@@ -595,62 +570,40 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
 
         self._reset_index()
 
-        # Track all candidate files
-        files_to_index = defaultdict(set)
+        def _index_dir(dir_, domains):
 
-        # Track any additional config files we run into
-        extra_configs = []
+            contents = [join(dir_, f) for f in self._get_files(dir_)]
 
-        def _index_domain_files(dom):
+            # Check for domain config file
+            config_file = join(dir_, self.config_filename)
 
-            doms_to_add = set(dom.config.get('domains', []) + [dom.name])
+            if exists(config_file):
+                new_dom = self._get_or_load_domain(config_file)
+                if new_dom not in domains:
+                    domains.append(new_dom)
+                contents.remove(config_file)
 
-            dataset = self._get_files(dom.config['root'])
+            contents = filter(lambda x: self._check_inclusions(x, domains),
+                              contents)
 
-            # Loop over all files in domain
-            for root, directories, filenames in dataset:
+            for f in contents:
 
-                def check_incl(f):
-                    return self._check_inclusions(f, dom.name)
+                full_path = join(dir_, f)
 
-                # Exclude directories that match exclude regex
-                full_dirs = [join(root, d) for d in directories]
-                full_dirs = filter(check_incl, full_dirs)
-                full_dirs = filter(self._validate_dir, full_dirs)
-                directories[:] = [split(d)[1] for d in full_dirs]
+                if isdir(full_path):
+                    # If the directory was explicitly passed in Layout init,
+                    # overwrite the current set of domains with what was passed
+                    domains = self._paths_to_index.get(full_path, domains)
+                    _index_dir(full_path, list(domains))
 
-                for f in filenames:
-                    full_path = join(root, f)
-                    # Add config file to tracking
-                    if f == self.config_filename:
-                        if full_path not in extra_configs:
-                            extra_configs.append(full_path)
-                    # Add file to the candidate index
-                    elif (self._check_inclusions(full_path, dom.name) and
-                          self._validate_file(full_path)):
-                        # If the file is below the Layout root, use a relative
-                        # path. Otherwise, use absolute path.
-                        if full_path.startswith(self.root) and not \
-                                self.absolute_paths:
-                            full_path = relpath(full_path, self.root)
-                        files_to_index[full_path] |= doms_to_add
+                elif self._validate_file(full_path):
+                    _dir, _base = split(full_path)
+                    dom_names = [d.name for d in domains]
+                    self._index_file(_dir, _base, dom_names)
 
-        for dom in self.domains.values():
-            _index_domain_files(dom)
-
-        # Set up any additional configs we found. Note that in edge cases,
-        # this approach has the potential to miss out on some configs, because
-        # it doesn't recurse. This will generally only happen under fairly
-        # weird circumstances though (e.g., the config file points to another
-        # root elsewhere in the filesystem, or there are inconsistent include/
-        # exclude directives across nested configs), so this will do for now.
-        for dom in extra_configs:
-            dom = self._load_domain(dom)
-            _index_domain_files(dom)
-
-        for filename, domains in files_to_index.items():
-            _dir, _base = split(filename)
-            self._index_file(_dir, _base, list(domains))
+        # Index each directory
+        for path, domains in self._paths_to_index.items():
+            _index_dir(path, list(domains))
 
     def save_index(self, filename):
         ''' Save the current Layout's index to a .json file.
@@ -769,16 +722,25 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
         Returns:
             A named tuple (default) or a list (see return_type for details).
         """
+
         if regex_search is None:
             regex_search = self.regex_search
 
         result = []
         filters = {}
         filters.update(kwargs)
+
         for filename, file in self.files.items():
             if not file._matches(filters, extensions, domains, regex_search):
                 continue
             result.append(file)
+
+        # Convert to relative paths if needed
+        if not self.absolute_paths:
+            for i, f in enumerate(result):
+                f = copy(f)
+                f.path = relpath(f.path, self.root)
+                result[i] = f
 
         if return_type == 'file':
             return natural_sort([f.path for f in result])
@@ -984,7 +946,11 @@ class Layout(six.with_metaclass(LayoutMetaclass, object)):
                 pattern in order to be a valid match. If False, extra entities
                 will be ignored so long as all mandatory entities are found.
         '''
+
         if isinstance(source, six.string_types):
+            if source not in self.files:
+                source = join(self.root, source)
+
             source = self.files[source]
 
         if isinstance(source, File):
