@@ -130,7 +130,8 @@ def write_contents_to_file(path, contents=None, link_to=None,
             'overwrite' overwrites the existing file; 'append' adds  a suffix
             to each file copy, starting with 1. Default is 'fail'.
     """
-    if not root and not isabs(path):
+
+    if root is None and not isabs(path):
         root = os.getcwd()
 
     if root:
