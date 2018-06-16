@@ -1,3 +1,8 @@
+0.2 (June 16, 2018)
+This is a major, backwards-incompatible release that changes the `Layout`initialization API. Changes include:
+* Major refactoring of the way Domains are handled and indexed. From a user standpoint, the main change is to the Layout initialization arguments; see Layout docstring for details (#69).
+* Minor domain-related bug fixes (#66, #67).
+
 0.1.23 (May 10, 2018)
 This release includes a major refactoring of the internal code, but maintains backward compatibility in the user-facing API. Changes include:
 * Elimination of the concept of a static root folder for each Domain in favor of a scan-time search path (#63)
