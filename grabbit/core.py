@@ -882,7 +882,14 @@ class Layout(object):
 
         matches = []
 
-        while True:
+        search_paths = [path]
+        while search_paths[:-1] != '/':
+            parent = dirname(search_paths[-1])
+            if parent == search_paths[-1]:
+                break
+            search_paths.append(parent)
+
+        for path in search_paths:
             if path in folders and folders[path]:
 
                 # Sort by number of matching entities. Also store number of
@@ -899,13 +906,6 @@ class Layout(object):
 
                 if not all_:
                     break
-            try:
-                _path, _ = split(path)
-                if _path == path:
-                    break
-                path = _path
-            except Exception:
-                break
 
         matches = [m.path if return_type == 'file' else m.as_named_tuple()
                    for m in matches]
