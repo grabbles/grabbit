@@ -833,7 +833,7 @@ class Layout(object):
         return data
 
     def get_nearest(self, path, return_type='file', strict=True, all_=False,
-                    ignore_strict_entities=None, **kwargs):
+                    ignore_strict_entities=None, full_search=False, **kwargs):
         ''' Walk up the file tree from the specified path and return the
         nearest matching file(s).
 
@@ -882,29 +882,33 @@ class Layout(object):
 
         matches = []
 
+        search_paths = []
         while True:
             if path in folders and folders[path]:
+                search_paths.append(path)
+            parent = dirname(path)
+            if parent == path:
+                break
+            path = parent
 
-                # Sort by number of matching entities. Also store number of
-                # common entities, for filtering when strict=True.
-                num_ents = [[f] + count_matches(f) for f in folders[path]]
-                # Filter out imperfect matches (i.e., where number of common
-                # entities does not equal number of matching entities).
-                if strict:
-                    num_ents = [f for f in num_ents if f[1] == f[2]]
-                num_ents.sort(key=lambda x: x[2], reverse=True)
+        if full_search:
+            unchecked = set(folders.keys()) - set(search_paths)
+            search_paths.extend(path for path in unchecked if folders[path])
 
-                if num_ents:
-                    matches.append(num_ents[0][0])
+        for path in search_paths:
+            # Sort by number of matching entities. Also store number of
+            # common entities, for filtering when strict=True.
+            num_ents = [[f] + count_matches(f) for f in folders[path]]
+            # Filter out imperfect matches (i.e., where number of common
+            # entities does not equal number of matching entities).
+            if strict:
+                num_ents = [f for f in num_ents if f[1] == f[2]]
+            num_ents.sort(key=lambda x: x[2], reverse=True)
 
-                if not all_:
-                    break
-            try:
-                _path, _ = split(path)
-                if _path == path:
-                    break
-                path = _path
-            except Exception:
+            if num_ents:
+                matches.append(num_ents[0][0])
+
+            if not all_:
                 break
 
         matches = [m.path if return_type == 'file' else m.as_named_tuple()
