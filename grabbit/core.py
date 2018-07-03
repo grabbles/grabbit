@@ -882,35 +882,34 @@ class Layout(object):
 
         matches = []
 
-        search_paths = [path]
-        while search_paths[-1] != '/':
-            if full_search and not all_ and search_paths[-1] in folders:
-                full_search = False
-            parent = dirname(search_paths[-1])
-            if parent == search_paths[-1]:
+        search_paths = []
+        while True:
+            if path in folders and folders[path]:
+                search_paths.append(path)
+            parent = dirname(path)
+            if parent == path:
                 break
-            search_paths.append(parent)
+            path = parent
 
         if full_search:
-            search_paths.extend(set(folders.keys()) - set(search_paths))
+            unchecked = set(folders.keys()) - set(search_paths)
+            search_paths.extend(path for path in unchecked if folders[path])
 
         for path in search_paths:
-            if path in folders and folders[path]:
+            # Sort by number of matching entities. Also store number of
+            # common entities, for filtering when strict=True.
+            num_ents = [[f] + count_matches(f) for f in folders[path]]
+            # Filter out imperfect matches (i.e., where number of common
+            # entities does not equal number of matching entities).
+            if strict:
+                num_ents = [f for f in num_ents if f[1] == f[2]]
+            num_ents.sort(key=lambda x: x[2], reverse=True)
 
-                # Sort by number of matching entities. Also store number of
-                # common entities, for filtering when strict=True.
-                num_ents = [[f] + count_matches(f) for f in folders[path]]
-                # Filter out imperfect matches (i.e., where number of common
-                # entities does not equal number of matching entities).
-                if strict:
-                    num_ents = [f for f in num_ents if f[1] == f[2]]
-                num_ents.sort(key=lambda x: x[2], reverse=True)
+            if num_ents:
+                matches.append(num_ents[0][0])
 
-                if num_ents:
-                    matches.append(num_ents[0][0])
-
-                if not all_:
-                    break
+            if not all_:
+                break
 
         matches = [m.path if return_type == 'file' else m.as_named_tuple()
                    for m in matches]
