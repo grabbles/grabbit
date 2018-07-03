@@ -833,7 +833,7 @@ class Layout(object):
         return data
 
     def get_nearest(self, path, return_type='file', strict=True, all_=False,
-                    ignore_strict_entities=None, **kwargs):
+                    ignore_strict_entities=None, new_param=False, **kwargs):
         ''' Walk up the file tree from the specified path and return the
         nearest matching file(s).
 
@@ -883,11 +883,16 @@ class Layout(object):
         matches = []
 
         search_paths = [path]
-        while search_paths[:-1] != '/':
+        while search_paths[-1] != '/':
+            if new_param and search_paths[-1] in folders:
+                new_param = False
             parent = dirname(search_paths[-1])
             if parent == search_paths[-1]:
                 break
             search_paths.append(parent)
+
+        if new_param:
+            search_paths.extend(folders.keys())
 
         for path in search_paths:
             if path in folders and folders[path]:
