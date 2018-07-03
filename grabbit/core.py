@@ -892,7 +892,7 @@ class Layout(object):
             search_paths.append(parent)
 
         if full_search:
-            search_paths.extend(folders.keys())
+            search_paths.extend(set(folders.keys()) - set(search_paths))
 
         for path in search_paths:
             if path in folders and folders[path]:
