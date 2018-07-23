@@ -18,7 +18,7 @@ __all__ = ['File', 'Entity', 'Layout']
 
 class File(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, domains=None):
         """
         Represents a single file.
         """
@@ -26,14 +26,11 @@ class File(object):
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
         self.tags = {}
+        self.domains = domains or []
 
     @property
     def entities(self):
         return {k: v.value for k, v in self.tags.items()}
-
-    @property
-    def domains(self):
-        return tuple(set([t.entity.domain.name for t in self.tags.values()]))
 
     def _matches(self, entities=None, extensions=None, domains=None,
                  regex_search=False):
@@ -547,6 +544,9 @@ class Layout(object):
             if update_layout:
                 domain.add_file(f)
 
+        if update_layout:
+            f.domains = domains
+
         self.files[f.path] = f
 
         return f
@@ -586,14 +586,15 @@ class Layout(object):
             contents = filter(lambda x: self._check_inclusions(x, domains),
                               contents)
 
+            # If the directory was explicitly passed in Layout init,
+            # overwrite the current set of domains with what was passed
+            domains = self._paths_to_index.get(dir_, domains)
+
             for f in contents:
 
                 full_path = join(dir_, f)
 
                 if isdir(full_path):
-                    # If the directory was explicitly passed in Layout init,
-                    # overwrite the current set of domains with what was passed
-                    domains = self._paths_to_index.get(full_path, domains)
                     _index_dir(full_path, list(domains))
 
                 elif self._validate_file(full_path):
