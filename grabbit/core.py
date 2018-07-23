@@ -18,7 +18,7 @@ __all__ = ['File', 'Entity', 'Layout']
 
 class File(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, domains=None):
         """
         Represents a single file.
         """
@@ -26,14 +26,11 @@ class File(object):
         self.filename = basename(self.path)
         self.dirname = dirname(self.path)
         self.tags = {}
+        self.domains = domains or []
 
     @property
     def entities(self):
         return {k: v.value for k, v in self.tags.items()}
-
-    @property
-    def domains(self):
-        return tuple(set([t.entity.domain.name for t in self.tags.values()]))
 
     def _matches(self, entities=None, extensions=None, domains=None,
                  regex_search=False):
@@ -546,6 +543,9 @@ class Layout(object):
 
             if update_layout:
                 domain.add_file(f)
+
+        if update_layout:
+            f.domains = domains
 
         self.files[f.path] = f
 
