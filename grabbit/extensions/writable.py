@@ -106,6 +106,8 @@ def build_path(entities, path_patterns, strict=False):
         if new_path:
             return new_path
 
+    return None
+
 
 def write_contents_to_file(path, contents=None, link_to=None,
                            content_mode='text', root=None, conflicts='fail'):
