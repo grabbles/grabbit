@@ -933,7 +933,8 @@ class Layout(object):
         result = self._index_file(root, f, domains, update_layout=False)
         return result.entities
 
-    def build_path(self, source, path_patterns=None, strict=False):
+    def build_path(self, source, path_patterns=None, strict=False,
+                   domains=None):
         ''' Constructs a target filename for a file or dictionary of entities.
 
         Args:
@@ -950,6 +951,11 @@ class Layout(object):
             strict (bool): If True, all entities must be matched inside a
                 pattern in order to be a valid match. If False, extra entities
                 will be ignored so long as all mandatory entities are found.
+            domains (str, list): Optional name(s) of domain(s) to scan for
+                path patterns. If None, all domains are scanned. If two or more
+                domains are provided, the order determines the precedence of
+                path patterns (i.e., earlier domains will have higher
+                precedence).
         '''
 
         if isinstance(source, six.string_types):
@@ -962,7 +968,11 @@ class Layout(object):
             source = source.entities
 
         if path_patterns is None:
-            path_patterns = self.path_patterns
+            if domains is None:
+                domains = list(self.domains.keys())
+            path_patterns = []
+            for dom in listify(domains):
+                path_patterns.extend(self.domains[dom].path_patterns)
 
         return build_path(source, path_patterns, strict)
 
@@ -1035,18 +1045,7 @@ class Layout(object):
                 All available domains are used.
 
         """
-        if path_patterns:
-            path = build_path(entities, path_patterns, strict)
-        else:
-            path_patterns = [self.path_patterns]
-            if domains is None:
-                domains = list(self.domains.keys())
-            for dom in domains:
-                path_patterns.append(self.domains[dom].path_patterns)
-            for pp in path_patterns:
-                path = build_path(entities, pp, strict)
-                if path is not None:
-                    break
+        path = self.build_path(entities, path_patterns, strict, domains)
 
         if path is None:
             raise ValueError("Cannot construct any valid filename for "
@@ -1058,6 +1057,8 @@ class Layout(object):
                                root=self.root)
 
         if index:
+            # TODO: Default to using only domains that have at least one
+            # tagged entity in the generated file.
             if index_domains is None:
                 index_domains = list(self.domains.keys())
             self._index_file(self.root, path, index_domains)
