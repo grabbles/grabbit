@@ -243,6 +243,7 @@ class TestLayout:
         layout = Layout([(data_dir, config)], dynamic_getters=True)
         assert hasattr(layout, 'get_subjects')
         assert '01' in getattr(layout, 'get_subjects')()
+        assert 1 in getattr(layout, 'get_runs')()
 
     def test_querying(self, bids_layout):
 
