@@ -313,6 +313,12 @@ class TestLayout:
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
 
+        # Check for file with matching run (fails if types don't match)
+        nearest = bids_layout.get_nearest(
+            result, type='phasediff', extensions='.nii.gz')
+        assert nearest is not None
+        assert os.path.basename(nearest) == 'sub-01_ses-1_run-1_phasediff.nii.gz'
+
     def test_index_regex(self, bids_layout, layout_include):
         targ = join('derivatives', 'excluded.json')
         assert targ not in bids_layout.files
