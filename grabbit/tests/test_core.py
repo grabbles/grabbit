@@ -243,6 +243,7 @@ class TestLayout:
         layout = Layout([(data_dir, config)], dynamic_getters=True)
         assert hasattr(layout, 'get_subjects')
         assert '01' in getattr(layout, 'get_subjects')()
+        assert 1 in getattr(layout, 'get_runs')()
 
     def test_querying(self, bids_layout):
 
@@ -311,6 +312,12 @@ class TestLayout:
             ignore_strict_entities=['type'])
         assert len(nearest) == 3
         assert nearest[0].subject == '01'
+
+        # Check for file with matching run (fails if types don't match)
+        nearest = bids_layout.get_nearest(
+            result, type='phasediff', extensions='.nii.gz')
+        assert nearest is not None
+        assert os.path.basename(nearest) == 'sub-01_ses-1_run-1_phasediff.nii.gz'
 
     def test_index_regex(self, bids_layout, layout_include):
         targ = join('derivatives', 'excluded.json')

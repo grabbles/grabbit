@@ -273,10 +273,7 @@ class Entity(object):
             m = self.regex.search(f.path)
             val = m.group(1) if m is not None else None
 
-        if val is not None and self.dtype is not None:
-            val = self.dtype(val)
-
-        return val
+        return self._astype(val)
 
     def add_file(self, filename, value):
         """ Adds the specified filename to tracking. """
@@ -295,6 +292,11 @@ class Entity(object):
         Returns: an int.
         """
         return len(self.files) if files else len(self.unique())
+
+    def _astype(self, val):
+        if val is not None and self.dtype is not None:
+            val = self.dtype(val)
+        return val
 
 
 class Layout(object):
@@ -860,7 +862,7 @@ class Layout(object):
         for ent in self.entities.values():
             m = ent.regex.search(path)
             if m:
-                entities[ent.name] = m.group(1)
+                entities[ent.name] = ent._astype(m.group(1))
 
         # Remove any entities we want to ignore when strict matching is on
         if strict and ignore_strict_entities is not None:

@@ -13,6 +13,8 @@ def natural_sort(l, field=None):
     def alphanum_key(key):
         if field is not None:
             key = getattr(key, field)
+        if not isinstance(key, str):
+            key = str(key)
         return [convert(c) for c in re.split('([0-9]+)', key)]
     return sorted(l, key=alphanum_key)
 
