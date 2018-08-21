@@ -1,11 +1,15 @@
+0.2.3 (August 21, 2018)
+This is a minor bugfix release. Fixes include:
+* Fixes a bug causing inconsistent application of types to entities (#81).
+* Fixes a bug in build_path that prevented path construction due to a failure to find path_patterns stored in domains (#79).
+
 0.2.2 (July 24, 2018)
 This is a minor bugfix release. Fixes include:
 * Fixes a bug in file-to-domain mapping that prevented proper querying across domains (#77).
-* Fixes a bug in build_path that prevented path construction due to a failure to find path_patterns stored in domains (#79).
 
 0.2.1 (July 5, 2018)
 This release contains minor improvements and bugfixes.
-* Adds a full_search parameter to get_nearest that allows matching files that don't share a common root (thanks to @effigies; ##73)
+* Adds a full_search parameter to get_nearest that allows matching files that don't share a common root (thanks to @effigies; #73)
 * Adds a license file.
 * Auto-release to PyPI on version tagging.
 
