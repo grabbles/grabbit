@@ -855,6 +855,9 @@ class Layout(object):
                 one to search, e.g., for files of a different type while
                 matching all other entities perfectly by passing
                 ignore_strict_entities=['type'].
+            full_search (bool): If True, searches all indexed files, even if
+                they don't share a common root with the provided path. If
+                False, only files that share a common root will be scanned.
             kwargs: Optional keywords to pass on to .get().
         '''
 

@@ -75,6 +75,16 @@ class TestWritableFile:
         target = join(writable_file.dirname, 'r-2.nii.gz')
         assert build_path(writable_file.entities, pats) == target
 
+        # Pattern with default value
+        pats = ['sess-{session|A}/r-{run}.nii.gz']
+        assert build_path({'run': 3}, pats) == 'sess-A/r-3.nii.gz'
+
+        # Pattern with both valid and default values
+        pats = ['sess-{session<A|B|C>|D}/r-{run}.nii.gz']
+        assert build_path({'session': 1, 'run': 3}, pats) == 'sess-D/r-3.nii.gz'
+        pats = ['sess-{session<A|B|C>|D}/r-{run}.nii.gz']
+        assert build_path({'session': 'B', 'run': 3}, pats) == 'sess-B/r-3.nii.gz'
+
     def test_strict_build_path(self):
 
         # Test with strict matching--should fail
