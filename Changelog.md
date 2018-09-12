@@ -1,3 +1,8 @@
+0.2.4 (September 12, 2018)
+This is a very minor release that does the following:
+* Cleans up the filename-building code and adds the ability to assign default values to path components (#83).
+* Adds per-directory validation during indexing (in addition to per-file validation).
+
 0.2.3 (August 21, 2018)
 This is a minor bugfix release. Fixes include:
 * Fixes a bug causing inconsistent application of types to entities (#81).
