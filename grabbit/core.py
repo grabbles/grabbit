@@ -597,7 +597,8 @@ class Layout(object):
                 full_path = join(dir_, f)
 
                 if isdir(full_path):
-                    _index_dir(full_path, list(domains))
+                    if self._validate_dir(full_path):
+                        _index_dir(full_path, list(domains))
 
                 elif self._validate_file(full_path):
                     _dir, _base = split(full_path)
