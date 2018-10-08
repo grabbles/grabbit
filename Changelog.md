@@ -1,3 +1,6 @@
+0.2.5 (October 7, 2018)
+This release adds a get_file() getter.
+
 0.2.4 (September 12, 2018)
 This is a very minor release that does the following:
 * Cleans up the filename-building code and adds the ability to assign default values to path components (#83).
