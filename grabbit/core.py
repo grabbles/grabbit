@@ -836,6 +836,10 @@ class Layout(object):
         data.insert(0, 'path', [f.path for f in files])
         return data
 
+    def get_file(self, f):
+        ''' Return File object for the specified path. '''
+        return self.files[f]
+
     def get_nearest(self, path, return_type='file', strict=True, all_=False,
                     ignore_strict_entities=None, full_search=False, **kwargs):
         ''' Walk up the file tree from the specified path and return the
@@ -878,7 +882,7 @@ class Layout(object):
         folders = defaultdict(list)
 
         for filename in results:
-            f = self.files[filename]
+            f = self.get_file(filename)
             folders[f.dirname].append(f)
 
         def count_matches(f):
@@ -968,7 +972,7 @@ class Layout(object):
             if source not in self.files:
                 source = join(self.root, source)
 
-            source = self.files[source]
+            source = self.get_file(source)
 
         if isinstance(source, File):
             source = source.entities
