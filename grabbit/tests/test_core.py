@@ -84,7 +84,7 @@ class TestFile:
         file = copy(file)
         file.tags = {'attrA': Tag(None, 'apple'), 'attrB': Tag(None, 'banana')}
         tup = file.as_named_tuple()
-        assert(tup.filename == file.path)
+        assert(tup.path == file.path)
         assert isinstance(tup, tuple)
         assert not hasattr(tup, 'task')
         assert tup.attrA == 'apple'
@@ -203,12 +203,13 @@ class TestLayout:
             layout = Layout([(root, config)], absolute_paths=True)
             result = layout.get(subject=1, run=1, session=1)
             assert result
-            assert all([os.path.isabs(f.filename) for f in result])
+            assert all([os.path.isabs(f.path) for f in result])
+            assert not any([os.path.isabs(f.filename) for f in result])
 
             layout = Layout([(root, config)], absolute_paths=False)
             result = layout.get(subject=1, run=1, session=1)
             assert result
-            assert not any([os.path.isabs(f.filename) for f in result])
+            assert not any([os.path.isabs(f.path) for f in result])
 
         # Should always be absolute paths on HDFS
         else:
