@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from io import open
 from collections import defaultdict, OrderedDict, namedtuple
 from grabbit.external import six, inflect
 from grabbit.utils import natural_sort, listify
@@ -433,7 +434,8 @@ class Layout(object):
             if domain in self.domains:
                 return self.domains[domain]
             elif exists(domain):
-                domain = json.load(open(domain, 'r'))
+                with open(domain, 'r', encoding='utf-8') as fobj:
+                    domain = json.load(fobj)
             else:
                 raise ValueError("No domain could be found/loaded from input "
                                  "'{}'; value must be either the name of an "
@@ -643,7 +645,8 @@ class Layout(object):
         where there aren't multiple layout specs within a project.
         '''
         self._reset_index()
-        data = json.load(open(filename, 'r'))
+        with open(filename, 'r', encoding='utf-8') as fobj:
+            data = json.load(fobj)
 
         for path, file in data.items():
 
