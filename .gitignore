@@ -94,3 +94,5 @@ ENV/
 *.orig
 
 .pytest_cache
+
+.*.swp
