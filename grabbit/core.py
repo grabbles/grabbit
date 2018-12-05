@@ -433,7 +433,8 @@ class Layout(object):
             if domain in self.domains:
                 return self.domains[domain]
             elif exists(domain):
-                domain = json.load(open(domain, 'r'))
+                with open(domain, 'r') as fobj:
+                    domain = json.load(fobj)
             else:
                 raise ValueError("No domain could be found/loaded from input "
                                  "'{}'; value must be either the name of an "
@@ -643,7 +644,8 @@ class Layout(object):
         where there aren't multiple layout specs within a project.
         '''
         self._reset_index()
-        data = json.load(open(filename, 'r'))
+        with open(filename, 'r') as fobj:
+            data = json.load(fobj)
 
         for path, file in data.items():
 
