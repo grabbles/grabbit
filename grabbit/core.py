@@ -782,7 +782,7 @@ class Layout(object):
                     patt = valid_entities[ent].pattern
                     template = template.replace('{%s}' % ent, patt)
                 template += '[^\%s]*$' % os.path.sep
-                matches = [f.dirname for f in self.files.values()
+                matches = [f.dirname for f in result
                            if re.search(template, f.dirname)]
                 return natural_sort(list(set(matches)))
 
