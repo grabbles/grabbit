@@ -1,3 +1,10 @@
+0.2.6 (January 11, 2018)
+This is a minor release mostly containing minor bugfixes:
+* FIX: Load JSON files using context managers (#85)
+* MAINT: Add mailmap to map contributor tags to authors (#86)
+* FIX: Ensure correct results are returned when `return_type='dir'` (#87)
+* RF: ship grabbit/tests and all needed test data along with the module #88
+
 0.2.5 (October 7, 2018)
 This release adds a get_file() getter.
 
