@@ -1,2 +1,3 @@
 include versioneer.py
 include grabbit/_version.py
+recursive-include grabbit/tests data misc specs
