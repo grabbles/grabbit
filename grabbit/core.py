@@ -104,8 +104,10 @@ class File(object):
                           "representing a File as a namedtuple. Replacing "
                           "entities %s with safe versions %s." % (keys, safe))
         entities = dict(zip(keys, self.entities.values()))
-        _File = namedtuple('File', 'filename ' + ' '.join(entities.keys()))
-        return _File(filename=self.path, **entities)
+        _FileTuple = namedtuple('FileTuple', 'path filename dirname ' + ' '.join(entities.keys()))
+        return _FileTuple(path=self.path,
+                     filename=self.filename, dirname=self.dirname,
+                     **entities)
 
     def copy(self, path_patterns, symbolic_link=False, root=None,
              conflicts='fail'):
