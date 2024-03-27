@@ -140,11 +140,11 @@ def write_contents_to_file(path, contents=None, link_to=None,
             raise ValueError(msg.format(path))
         elif conflicts == 'skip':
             msg = 'A file at path {} already exists, skipping writing file.'
-            logging.warn(msg.format(path))
+            logging.warning(msg.format(path))
             return
         elif conflicts == 'overwrite':
             if isdir(path):
-                logging.warn('New path is a directory, not going to '
+                logging.warning('New path is a directory, not going to '
                              'overwrite it, skipping instead.')
                 return
             os.remove(path)
